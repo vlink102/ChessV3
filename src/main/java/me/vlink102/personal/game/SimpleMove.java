@@ -31,6 +31,14 @@ public class SimpleMove {
         return piece;
     }
 
+    /**
+     * Not color discriminatory
+     */
+    public boolean isCapture(PieceWrapper[][] board) {
+        PieceWrapper piece = board[to.row()][to.column()];
+        return piece != null;
+    }
+
     @Override
     public String toString() {
         return ((!(piece instanceof Pawn)) ? piece.getType().getAbbr().substring(1,2).toUpperCase() : "") + to.toString();
@@ -41,6 +49,13 @@ public class SimpleMove {
         StringBuilder builder = new StringBuilder();
         builder.append(((!(piece instanceof Pawn)) ? piece.getType().getAbbr().substring(1,2).toUpperCase() : ""));
         if (board[to.row()][to.column()] != null) {
+            if (piece instanceof Pawn) {
+                builder.append(from.getColumnLetter());
+            }
+            builder.append("x");
+        }
+        if (piece instanceof Pawn && manager.getEnPassant() != null && manager.getEnPassant().equals(to)) {
+            builder.append(from.getColumnLetter());
             builder.append("x");
         }
         builder.append(to);

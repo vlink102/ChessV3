@@ -59,7 +59,7 @@ public class ChessBoard extends JFrame implements MouseListener, MouseMotionList
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-        this.setDefaultCloseOperation(DISPOSE_ON_CLOSE);
+        this.setDefaultCloseOperation(EXIT_ON_CLOSE);
         this.setResizable(false);
         this.pack();
         this.setLocationRelativeTo(null);

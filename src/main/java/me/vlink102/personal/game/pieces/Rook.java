@@ -6,8 +6,8 @@ import me.vlink102.personal.game.SimpleMove;
 import me.vlink102.personal.internal.PieceEnum;
 
 public class Rook extends PieceWrapper {
-    public Rook(boolean white, GameManager.Tile startingSquare) {
-        super(white ? PieceEnum.WHITE_ROOK : PieceEnum.BLACK_ROOK, white, startingSquare);
+    public Rook(boolean white, GameManager.Tile startingSquare, RookSide... rookSides) {
+        super(white ? PieceEnum.WHITE_ROOK : PieceEnum.BLACK_ROOK, white, startingSquare, rookSides);
     }
 
     @Override

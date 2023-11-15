@@ -7,12 +7,14 @@ public abstract class PieceWrapper {
     private final boolean white;
     private int moves;
     private final GameManager.Tile startingSquare;
+    private final RookSide side;
 
-    public PieceWrapper(PieceEnum type, boolean white, final GameManager.Tile startingSquare) {
+    public PieceWrapper(PieceEnum type, boolean white, final GameManager.Tile startingSquare, RookSide... rookSides) {
         this.type = type;
         this.white = white;
         this.moves = 0;
         this.startingSquare = startingSquare;
+        this.side = (rookSides.length != 0) ? rookSides[0] : null;
     }
 
     public int getMoves() {
@@ -37,6 +39,15 @@ public abstract class PieceWrapper {
 
     public boolean canMove(SimpleMove move, boolean capture) {
         return false;
+    }
+
+    public RookSide getSide() {
+        return side;
+    }
+
+    public enum RookSide {
+        KINGSIDE,
+        QUEENSIDE
     }
 
     public boolean isDiagonal(GameManager.Tile from, GameManager.Tile to) {

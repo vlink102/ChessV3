@@ -9,9 +9,14 @@ import java.awt.*;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 
 public class GameManager {
     private final ChessBoard board;
+    private final GamePlay gamePlay;
+
+    private Tile enPassant;
+    private Tile enPassantPiece;
 
     private final PieceWrapper[][] internalBoard;
 
@@ -24,6 +29,9 @@ public class GameManager {
         this.internalBoard = new PieceWrapper[8][8];
         setupPieces();
         refreshBoard(ChessBoard.WHITE);
+        this.gamePlay = new GamePlay();
+        this.enPassant = null;
+        this.enPassantPiece = null;
     }
 
     public void movePiece(Tile from, Tile to, PieceWrapper[][] board) {
@@ -31,10 +39,19 @@ public class GameManager {
         refreshBoard(ChessBoard.WHITE);
     }
 
+    public boolean canLegallyMove(SimpleMove move) {
+        return move.getPiece().isWhite() == gamePlay.isWhiteToMove();
+    }
+
     public boolean canMove(SimpleMove move, PieceWrapper[][] board) {
         PieceWrapper target = board[move.getTo().row][move.getTo().column];
         PieceWrapper piece = move.getPiece();
         if (target == null) {
+            if (enPassant != null) {
+                if (enPassant.equals(move.getTo()) && piece instanceof Pawn) {
+                    return true;
+                }
+            }
             return piece.canMove(move, false);
         } else if (target.isWhite() != move.getPiece().isWhite()) {
             return piece.canMove(move, true);
@@ -111,11 +128,28 @@ public class GameManager {
         return !isKingInCheck(newBoard, move.getPiece().isWhite());
     }
 
+    public void cleanUpEnPassantCapture(PieceWrapper[][] board, SimpleMove move) {
+        cleanUpEnPassantCapture(board, move, enPassant, enPassantPiece);
+    }
+
+    public void cleanUpEnPassantCapture(PieceWrapper[][] board, SimpleMove move, Tile ep, Tile epP) {
+        if (move.isCapture(board)) return;
+        if (move.getPiece() instanceof Pawn) {
+            if (move.getTo().equals(ep)) {
+                board[epP.row][epP.column] = null;
+            }
+        }
+    }
+
     public void movePiece(PieceWrapper[][] board, SimpleMove move) {
         if (move.getPiece() == null) return;
+        if (!canLegallyMove(move)) return;
         if (canMove(move, board) && notBlocked(board, move.getFrom(), move.getTo()) && kingAvoidsCheck(board, move)) {
+            cleanUpEnPassantCapture(board, move);
             movePieceInternal(board, move);
+            generateEnPassantTile(move);
             move.getPiece().incrementMoves();
+            gamePlay.movePiece(move, board);
         }
     }
 
@@ -127,6 +161,8 @@ public class GameManager {
             board[from.row][from.column] = null;
             board[to.row][to.column] = temp;
         }
+
+        cleanUpEnPassantCapture(board, move);
         return board;
     }
 
@@ -137,16 +173,16 @@ public class GameManager {
         setInternalPiece(new Bishop(true, new Tile(0, 5)), new Tile(0, 5));
         setInternalPiece(new Knight(true, new Tile(0, 1)), new Tile(0, 1));
         setInternalPiece(new Knight(true, new Tile(0, 6)), new Tile(0, 6));
-        setInternalPiece(new Rook(true, new Tile(0, 0)), new Tile(0, 0));
-        setInternalPiece(new Rook(true, new Tile(0, 7)), new Tile(0, 7));
+        setInternalPiece(new Rook(true, new Tile(0, 0), PieceWrapper.RookSide.KINGSIDE), new Tile(0, 0));
+        setInternalPiece(new Rook(true, new Tile(0, 7), PieceWrapper.RookSide.QUEENSIDE), new Tile(0, 7));
         setInternalPiece(new King(false, new Tile(7, 3)), new Tile(7, 3));
         setInternalPiece(new Queen(false, new Tile(7, 4)), new Tile(7, 4));
         setInternalPiece(new Bishop(false, new Tile(7, 2)), new Tile(7, 2));
         setInternalPiece(new Bishop(false, new Tile(7, 5)), new Tile(7, 5));
         setInternalPiece(new Knight(false, new Tile(7, 1)), new Tile(7, 1));
         setInternalPiece(new Knight(false, new Tile(7, 6)), new Tile(7, 6));
-        setInternalPiece(new Rook(false, new Tile(7, 0)), new Tile(7, 0));
-        setInternalPiece(new Rook(false, new Tile(7, 7)), new Tile(7, 7));
+        setInternalPiece(new Rook(false, new Tile(7, 0), PieceWrapper.RookSide.KINGSIDE), new Tile(7, 0));
+        setInternalPiece(new Rook(false, new Tile(7, 7), PieceWrapper.RookSide.QUEENSIDE), new Tile(7, 7));
 
         for (int i = 0; i < 8; i++) {
             setInternalPiece(new Pawn(true, new Tile(1, i)), new Tile(1, i));
@@ -208,16 +244,30 @@ public class GameManager {
             return new Tile(white, point.x, point.y, pieceSize);
         }
 
-        /*
         @Override
         public String toString() {
-            return "GameManager.Tile{row=" + row + ", column=" + column + "}";
+            return getColumnLetter() + getRowNumber();
         }
-         */
+
+        public String getColumnLetter() {
+            return String.valueOf(((char) ((7 - column) + 'a')));
+        }
+
+        public String getRowNumber() {
+            return String.valueOf(row + 1);
+        }
 
         @Override
-        public String toString() {
-            return ((char) ((7 - column) + 'a')) + String.valueOf(row + 1);
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+            Tile tile = (Tile) o;
+            return row == tile.row && column == tile.column;
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(row, column);
         }
     }
 
@@ -262,5 +312,31 @@ public class GameManager {
 
     public boolean isStalemate(PieceWrapper[][] board) {
         return (possibleMoves(board, true).isEmpty() && !isKingInCheck(board, true)) || (possibleMoves(board, false).isEmpty() && !isKingInCheck(board, false));
+    }
+
+    public Tile getEnPassant() {
+        return enPassant;
+    }
+
+    public Tile getEnPassantPiece() {
+        return enPassantPiece;
+    }
+
+    public void generateEnPassantTile(SimpleMove move) {
+        PieceWrapper piece = move.getPiece();
+        if (piece.getMoves() == 0 && piece instanceof Pawn) {
+            if (move.getFrom().row - move.getTo().row == 2) {
+                // black
+                enPassant = new Tile(move.getTo().row + 1, move.getTo().column);
+                enPassantPiece = move.getTo();
+            } else if (move.getTo().row - move.getFrom().row == 2) {
+                // white
+                enPassant = new Tile(move.getTo().row - 1, move.getTo().column);
+                enPassantPiece = move.getTo();
+            }
+        } else {
+            enPassantPiece = null;
+            enPassant = null;
+        }
     }
 }

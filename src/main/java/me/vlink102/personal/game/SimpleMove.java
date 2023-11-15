@@ -1,5 +1,6 @@
 package me.vlink102.personal.game;
 
+import me.vlink102.personal.game.pieces.King;
 import me.vlink102.personal.game.pieces.Pawn;
 
 public class SimpleMove {
@@ -47,18 +48,33 @@ public class SimpleMove {
     public String deepToString(GameManager manager, PieceWrapper[][] board) {
         PieceWrapper[][] result = manager.getResultBoard(board, this);
         StringBuilder builder = new StringBuilder();
-        builder.append(((!(piece instanceof Pawn)) ? piece.getType().getAbbr().substring(1,2).toUpperCase() : ""));
-        if (board[to.row()][to.column()] != null) {
+        boolean isCastle = (piece instanceof King && Math.abs(to.column() - from.column()) == 2);
+        boolean isEnPassant = (piece instanceof Pawn && manager.getEnPassant() != null && manager.getEnPassant().equals(to));
+        boolean capture = (board[to.row()][to.column()] != null);
+        String abbreviation = piece.getType().getNamedNotation();
+
+
+        if (isCastle) {
+            if (to.column() > from.column()) {
+                builder.append("O-O-O");
+            } else {
+                builder.append("O-O");
+            }
+        }
+
+        if (!isCastle) builder.append(abbreviation);
+        if (capture) {
             if (piece instanceof Pawn) {
                 builder.append(from.getColumnLetter());
             }
             builder.append("x");
         }
-        if (piece instanceof Pawn && manager.getEnPassant() != null && manager.getEnPassant().equals(to)) {
+        if (isEnPassant) {
             builder.append(from.getColumnLetter());
             builder.append("x");
         }
-        builder.append(to);
+
+        if (!isCastle) builder.append(to);
         if (manager.isKingInCheck(result, !piece.isWhite())) {
             if (manager.isCheckmated(result, !piece.isWhite())) {
                 builder.append("#");

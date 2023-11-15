@@ -3,6 +3,7 @@ package me.vlink102.personal.game;
 import me.vlink102.personal.game.pieces.*;
 import me.vlink102.personal.internal.ChessBoard;
 import me.vlink102.personal.internal.FileUtils;
+import org.jetbrains.annotations.Nullable;
 
 import javax.swing.*;
 import java.awt.*;
@@ -47,16 +48,115 @@ public class GameManager {
         PieceWrapper target = board[move.getTo().row][move.getTo().column];
         PieceWrapper piece = move.getPiece();
         if (target == null) {
-            if (enPassant != null) {
-                if (enPassant.equals(move.getTo()) && piece instanceof Pawn) {
+            if (!canMoveToEnPassant(move)) {
+                CastleSide castleSide = canCastle(board, move);
+                if (castleSide == null) {
+                    return piece.canMove(move, false);
+                } else {
                     return true;
                 }
+            } else {
+                return true;
             }
-            return piece.canMove(move, false);
         } else if (target.isWhite() != move.getPiece().isWhite()) {
             return piece.canMove(move, true);
         }
         return false;
+    }
+
+    public boolean canMoveToEnPassant(SimpleMove move) {
+        if (enPassant != null) {
+            return enPassant.equals(move.getTo()) && move.getPiece() instanceof Pawn;
+        }
+        return false;
+    }
+
+    public enum CastleSide {
+        KINGSIDE,
+        QUEENSIDE
+    }
+
+    public boolean canCastleThroughCheckedTiles(PieceWrapper[][] board, SimpleMove move) {
+        Tile kingTile = getKing(board, move.getPiece().isWhite());
+        PieceWrapper king = board[kingTile.row][kingTile.column];
+        int startingCol = king.getStartingSquare().column;
+        int toCol = move.getTo().column;
+        if (toCol > startingCol) {
+            if (Math.abs(toCol - startingCol) == 3) {
+                for (int i = 0; i < 3; i++) {
+                    Tile affected = new Tile(kingTile.row, kingTile.column + (i + 1));
+                    if (isTileInCheck(affected, !king.isWhite(), board)) {
+                        return false;
+                    }
+                }
+            }
+        } else if (toCol < startingCol) {
+            if (Math.abs(toCol - startingCol) == 2) {
+                for (int i = 0; i < 2; i++) {
+                    Tile affected = new Tile(kingTile.row, kingTile.column - (i + 1));
+                    if (isTileInCheck(affected, !king.isWhite(), board)) {
+                        return false;
+                    }
+                }
+            }
+        }
+        return true;
+    }
+
+    public void cleanUpCastleMove(PieceWrapper[][] board, SimpleMove move) {
+        if (move.isCapture(board)) return;
+        if (move.getPiece() instanceof King king) {
+            int startingCol = king.getStartingSquare().column;
+            int toCol = move.getTo().column;
+            if (Math.abs(toCol - startingCol) == 2) {
+                if (toCol > startingCol) {
+                    Tile rook = getRook(board, PieceWrapper.RookSide.QUEENSIDE, king.isWhite());
+                    assert rook != null;
+                    PieceWrapper temp = board[rook.row][rook.column];
+                    board[rook.row][rook.column] = null;
+                    board[rook.row][rook.column - 3] = temp;
+                } else if (toCol < startingCol) {
+                    Tile rook = getRook(board, PieceWrapper.RookSide.KINGSIDE, king.isWhite());
+                    assert rook != null;
+                    PieceWrapper temp = board[rook.row][rook.column];
+                    board[rook.row][rook.column] = null;
+                    board[rook.row][rook.column + 2] = temp;
+                }
+            }
+
+        }
+    }
+
+    public @Nullable Tile getRook(PieceWrapper[][] board, PieceWrapper.RookSide side, boolean white) {
+        for (int i = 0; i < 8; i++) {
+            for (int j = 0; j < 8; j++) {
+                Tile tile = new Tile(i, j);
+                if (board[i][j] instanceof Rook rook) {
+                    if (rook.getSide().equals(side) && rook.isWhite() == white) {
+                        return tile;
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    public @Nullable CastleSide canCastle(PieceWrapper[][] board, SimpleMove move) {
+        PieceWrapper piece = move.getPiece();
+        if (piece instanceof King king && move.getTo().row == move.getFrom().row && Math.abs(move.getTo().column - move.getFrom().column) == 2) {
+            if (!canCastleThroughCheckedTiles(board, move)) return null;
+            int startingCol = king.getStartingSquare().column;
+            int toCol = move.getTo().column;
+            if (Math.abs(toCol - startingCol) == 2) {
+                if (toCol > startingCol) {
+                    return (king.isWhite() ? gamePlay.isCastleWhiteQueen() : gamePlay.isCastleBlackQueen()) ? CastleSide.QUEENSIDE : null;
+                } else if (toCol < startingCol) {
+                    return (king.isWhite() ? gamePlay.isCastleWhiteKing() : gamePlay.isCastleBlackKing()) ? CastleSide.KINGSIDE : null;
+                }
+            }
+
+        }
+        return null;
     }
 
     public boolean notBlocked(PieceWrapper[][] board, Tile f, Tile t) {
@@ -146,6 +246,7 @@ public class GameManager {
         if (!canLegallyMove(move)) return;
         if (canMove(move, board) && notBlocked(board, move.getFrom(), move.getTo()) && kingAvoidsCheck(board, move)) {
             cleanUpEnPassantCapture(board, move);
+            cleanUpCastleMove(board, move);
             movePieceInternal(board, move);
             generateEnPassantTile(move);
             move.getPiece().incrementMoves();
@@ -168,19 +269,19 @@ public class GameManager {
 
     public void setupPieces() {
         setInternalPiece(new King(true, new Tile(0, 3)), new Tile(0, 3));
-        setInternalPiece(new Queen(true, new Tile(0, 4)), new Tile(0, 4));
-        setInternalPiece(new Bishop(true, new Tile(0, 2)), new Tile(0, 2));
-        setInternalPiece(new Bishop(true, new Tile(0, 5)), new Tile(0, 5));
-        setInternalPiece(new Knight(true, new Tile(0, 1)), new Tile(0, 1));
-        setInternalPiece(new Knight(true, new Tile(0, 6)), new Tile(0, 6));
+        //setInternalPiece(new Queen(true, new Tile(0, 4)), new Tile(0, 4));
+        //setInternalPiece(new Bishop(true, new Tile(0, 2)), new Tile(0, 2));
+        //setInternalPiece(new Bishop(true, new Tile(0, 5)), new Tile(0, 5));
+        //setInternalPiece(new Knight(true, new Tile(0, 1)), new Tile(0, 1));
+        //setInternalPiece(new Knight(true, new Tile(0, 6)), new Tile(0, 6));
         setInternalPiece(new Rook(true, new Tile(0, 0), PieceWrapper.RookSide.KINGSIDE), new Tile(0, 0));
         setInternalPiece(new Rook(true, new Tile(0, 7), PieceWrapper.RookSide.QUEENSIDE), new Tile(0, 7));
         setInternalPiece(new King(false, new Tile(7, 3)), new Tile(7, 3));
-        setInternalPiece(new Queen(false, new Tile(7, 4)), new Tile(7, 4));
-        setInternalPiece(new Bishop(false, new Tile(7, 2)), new Tile(7, 2));
-        setInternalPiece(new Bishop(false, new Tile(7, 5)), new Tile(7, 5));
-        setInternalPiece(new Knight(false, new Tile(7, 1)), new Tile(7, 1));
-        setInternalPiece(new Knight(false, new Tile(7, 6)), new Tile(7, 6));
+        //setInternalPiece(new Queen(false, new Tile(7, 4)), new Tile(7, 4));
+        //setInternalPiece(new Bishop(false, new Tile(7, 2)), new Tile(7, 2));
+        //setInternalPiece(new Bishop(false, new Tile(7, 5)), new Tile(7, 5));
+        //setInternalPiece(new Knight(false, new Tile(7, 1)), new Tile(7, 1));
+        //setInternalPiece(new Knight(false, new Tile(7, 6)), new Tile(7, 6));
         setInternalPiece(new Rook(false, new Tile(7, 0), PieceWrapper.RookSide.KINGSIDE), new Tile(7, 0));
         setInternalPiece(new Rook(false, new Tile(7, 7), PieceWrapper.RookSide.QUEENSIDE), new Tile(7, 7));
 
@@ -284,12 +385,12 @@ public class GameManager {
         return simpleMoves;
     }
 
-    public List<SimpleMove> possibleMoves(PieceWrapper[][] board, Tile tile) {
+    public @Nullable List<SimpleMove> possibleMoves(PieceWrapper[][] board, Tile tile) {
         if (board[tile.row][tile.column] == null) return null;
         return possibleMoves(board[tile.row][tile.column], tile, board);
     }
 
-    public List<SimpleMove> possibleMoves(PieceWrapper wrapper, Tile tile, PieceWrapper[][] board) {
+    public @Nullable List<SimpleMove> possibleMoves(PieceWrapper wrapper, Tile tile, PieceWrapper[][] board) {
         if (!board[tile.row][tile.column].equals(wrapper)) return null;
 
         List<SimpleMove> possibleMoves = new ArrayList<>();

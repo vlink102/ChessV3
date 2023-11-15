@@ -82,6 +82,9 @@ public class ChessBoard extends JFrame implements MouseListener, MouseMotionList
 
         clicked = e.getPoint();
 
+        GameManager.Tile clickedTile = GameManager.Tile.fromPoint(WHITE, clicked, pieceSize);
+        if (manager.getInternalBoard()[clickedTile.row()][clickedTile.column()] == null) return;
+
         StringJoiner joiner = new StringJoiner(", ");
         int i = 0;
         for (SimpleMove possibleMove : manager.possibleMoves(manager.getInternalBoard(), GameManager.Tile.fromPoint(WHITE, clicked, pieceSize))) {

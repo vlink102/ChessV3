@@ -3,6 +3,7 @@ package me.vlink102.personal.game;
 import me.vlink102.personal.game.pieces.*;
 import me.vlink102.personal.internal.ChessBoard;
 import me.vlink102.personal.internal.FileUtils;
+import me.vlink102.personal.internal.PieceEnum;
 import org.jetbrains.annotations.Nullable;
 
 import javax.swing.*;
@@ -76,10 +77,71 @@ public class GameManager {
         QUEENSIDE
     }
 
+    public enum AmbiguityLevel {
+        A1,
+        A2
+    }
+
+    public @Nullable AmbiguityLevel isTileAmbiguous(PieceWrapper[][] board, Tile tile, PieceEnum pieceType, boolean white) {
+        List<Tile> ambiguousTiles = new ArrayList<>();
+        for (int i = 0; i < 8; i++) {
+            for (int j = 0; j < 8; j++) {
+                Tile iter = new Tile(i, j);
+                if (iter.equals(tile)) continue;
+                PieceWrapper piece = board[i][j];
+                if (piece == null) continue;
+                if (piece.isWhite() != white || piece.getType() != pieceType) continue;
+                SimpleMove move = new SimpleMove(iter, tile, board);
+                if (canMove(move, board) && notBlocked(board, iter, tile) && kingAvoidsCheck(board, move)) {
+                    ambiguousTiles.add(iter);
+                }
+            }
+        }
+        for (int i = 0; i < ambiguousTiles.size(); i++) {
+            for (Tile ambiguousTile : ambiguousTiles) {
+                if (ambiguousTiles.get(i).equals(ambiguousTile)) continue;
+                if (ambiguousTiles.get(i).column == ambiguousTile.column) {
+                    System.out.println("yes");
+                    return AmbiguityLevel.A2;
+                }
+            }
+        }
+        if (ambiguousTiles.size() > 1) {
+            System.out.println("yeeee");
+            return AmbiguityLevel.A1;
+        }
+
+        return null;
+    }
+
+    /*
+    public boolean isTileAmbiguous(PieceWrapper[][] board, Tile tile, PieceEnum pieceType, boolean white) {
+        int c = 0;
+        for (int i = 0; i < 8; i++) {
+            for (int j = 0; j < 8; j++) {
+                if (board[i][j] != null) {
+                    PieceWrapper piece = board[i][j];
+                    if (piece.isWhite() == white && piece.getType() == pieceType) {
+                        Tile t = new Tile(i, j);
+                        SimpleMove move = new SimpleMove(t, tile, board);
+                        if (canMove(move, board) && notBlocked(board, t, tile) && kingAvoidsCheck(board, move)) {
+                            c++;
+                        }
+                    }
+                }
+                if (c > 1) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+     */
+
     public boolean canCastleThroughCheckedTiles(PieceWrapper[][] board, SimpleMove move) {
         Tile kingTile = getKing(board, move.getPiece().isWhite());
         PieceWrapper king = board[kingTile.row][kingTile.column];
-        int startingCol = king.getStartingSquare().column;
+        int startingCol = move.getFrom().column;
         int toCol = move.getTo().column;
         if (toCol > startingCol) {
             if (Math.abs(toCol - startingCol) == 3) {
@@ -103,10 +165,10 @@ public class GameManager {
         return true;
     }
 
-    public void cleanUpCastleMove(PieceWrapper[][] board, SimpleMove move) {
+    public void cleanUpCastleMove(PieceWrapper[][] board, SimpleMove move, boolean tempo) {
         if (move.isCapture(board)) return;
         if (move.getPiece() instanceof King king) {
-            int startingCol = king.getStartingSquare().column;
+            int startingCol = move.getFrom().column;
             int toCol = move.getTo().column;
             if (Math.abs(toCol - startingCol) == 2) {
                 if (toCol > startingCol) {
@@ -115,12 +177,24 @@ public class GameManager {
                     PieceWrapper temp = board[rook.row][rook.column];
                     board[rook.row][rook.column] = null;
                     board[rook.row][rook.column - 3] = temp;
+                    if (tempo) return;
+                    if (king.isWhite()) {
+                        gamePlay.setCastleWhiteQueen(false);
+                    } else {
+                        gamePlay.setCastleBlackQueen(false);
+                    }
                 } else if (toCol < startingCol) {
                     Tile rook = getRook(board, PieceWrapper.RookSide.KINGSIDE, king.isWhite());
                     assert rook != null;
                     PieceWrapper temp = board[rook.row][rook.column];
                     board[rook.row][rook.column] = null;
                     board[rook.row][rook.column + 2] = temp;
+                    if (tempo) return;
+                    if (king.isWhite()) {
+                        gamePlay.setCastleWhiteKing(false);
+                    } else {
+                        gamePlay.setCastleBlackKing(false);
+                    }
                 }
             }
 
@@ -145,7 +219,7 @@ public class GameManager {
         PieceWrapper piece = move.getPiece();
         if (piece instanceof King king && move.getTo().row == move.getFrom().row && Math.abs(move.getTo().column - move.getFrom().column) == 2) {
             if (!canCastleThroughCheckedTiles(board, move)) return null;
-            int startingCol = king.getStartingSquare().column;
+            int startingCol = move.getFrom().column;
             int toCol = move.getTo().column;
             if (Math.abs(toCol - startingCol) == 2) {
                 if (toCol > startingCol) {
@@ -201,6 +275,7 @@ public class GameManager {
         return false;
     }
 
+    // FIXME
     public PieceWrapper[][] getResultBoard(PieceWrapper[][] board, SimpleMove move) {
         PieceWrapper[][] tempBoard = Arrays.stream(board).map(PieceWrapper[]::clone).toArray(PieceWrapper[][]::new);
         tempBoard = movePieceInternal(tempBoard, move);
@@ -246,7 +321,7 @@ public class GameManager {
         if (!canLegallyMove(move)) return;
         if (canMove(move, board) && notBlocked(board, move.getFrom(), move.getTo()) && kingAvoidsCheck(board, move)) {
             cleanUpEnPassantCapture(board, move);
-            cleanUpCastleMove(board, move);
+            cleanUpCastleMove(board, move, false);
             movePieceInternal(board, move);
             generateEnPassantTile(move);
             move.getPiece().incrementMoves();
@@ -255,6 +330,9 @@ public class GameManager {
     }
 
     public PieceWrapper[][] movePieceInternal(PieceWrapper[][] board, SimpleMove move) {
+        cleanUpCastleMove(board, move, true);
+
+        // FIXME
         Tile from = move.getFrom();
         Tile to = move.getTo();
         if (board[from.row][from.column].equals(move.getPiece())) {
@@ -262,7 +340,6 @@ public class GameManager {
             board[from.row][from.column] = null;
             board[to.row][to.column] = temp;
         }
-
         cleanUpEnPassantCapture(board, move);
         return board;
     }

@@ -84,18 +84,13 @@ public class GamePlay {
         if (!(move.getPiece() instanceof Pawn) && !move.isCapture(board)) {
             fiftyMoveRule++;
         }
-        if (move.getPiece() instanceof Rook rook) {
-            if (rook.isWhite()) {
-                switch (rook.getSide()) {
-                    case KINGSIDE -> castleWhiteKing = false;
-                    case QUEENSIDE -> castleWhiteQueen = false;
-                }
-            } else {
-                switch (rook.getSide()) {
-                    case KINGSIDE -> castleBlackKing = false;
-                    case QUEENSIDE -> castleBlackQueen = false;
-                }
+        if (board[move.getTo().row()][move.getTo().column()] != null) {
+            if (board[move.getTo().row()][move.getTo().column()] instanceof Rook rook) {
+                disableRook(rook);
             }
+        }
+        if (move.getPiece() instanceof Rook rook) {
+            disableRook(rook);
         }
         if (move.getPiece() instanceof King king) {
             if (king.isWhite()) {
@@ -107,6 +102,20 @@ public class GamePlay {
             }
         }
         whiteToMove = !whiteToMove;
+    }
+
+    private void disableRook(Rook rook) {
+        if (rook.isWhite()) {
+            switch (rook.getSide()) {
+                case KINGSIDE -> castleWhiteKing = false;
+                case QUEENSIDE -> castleWhiteQueen = false;
+            }
+        } else {
+            switch (rook.getSide()) {
+                case KINGSIDE -> castleBlackKing = false;
+                case QUEENSIDE -> castleBlackQueen = false;
+            }
+        }
     }
 
     public void reset() {

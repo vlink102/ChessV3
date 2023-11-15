@@ -63,6 +63,13 @@ public class SimpleMove {
         }
 
         if (!isCastle) builder.append(abbreviation);
+        GameManager.AmbiguityLevel level = manager.isTileAmbiguous(board, to, piece.getType(), piece.isWhite());
+        if (level != null && !(piece instanceof Pawn)) {
+            switch (level) {
+                case A1 -> builder.append(from.getColumnLetter());
+                case A2 -> builder.append(from.toString());
+            }
+        }
         if (capture) {
             if (piece instanceof Pawn) {
                 builder.append(from.getColumnLetter());

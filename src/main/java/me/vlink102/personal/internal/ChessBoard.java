@@ -29,6 +29,10 @@ public class ChessBoard extends JFrame implements MouseListener, MouseMotionList
 
     private final GameManager manager;
 
+    public int getPieceSize() {
+        return pieceSize;
+    }
+
     public ChessBoard(int size) {
         this.pieceSize = size / 8;
         Dimension boardSize = new Dimension(size, size);

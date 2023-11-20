@@ -1,5 +1,6 @@
 package me.vlink102.personal.game;
 
+import me.vlink102.personal.Main;
 import me.vlink102.personal.game.pieces.*;
 import me.vlink102.personal.internal.ChessBoard;
 import me.vlink102.personal.internal.FileUtils;
@@ -12,6 +13,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 
 public class GameManager {
     private final ChessBoard board;
@@ -22,12 +25,118 @@ public class GameManager {
 
     private final PieceWrapper[][] internalBoard;
 
+    public ChessBoard getBoard() {
+        return board;
+    }
+
     public PieceWrapper[][] getInternalBoard() {
         return internalBoard;
     }
 
-    public ChessBoard getBoard() {
+    public PieceWrapper[][] fromFEN(String fen) {
+        PieceWrapper[][] board = new PieceWrapper[8][8];
+        String newFen = computedFEN(fen.split(" ")[0]);
+        String[] rows = newFen.split("/");
+        for (int i = 0; i < 8; i++) {
+            String row = rows[i];
+            System.out.println(row);
+            for (int j = 0; j < 8; j++) {
+                board[7 - i][7 - j] = fromString(new Tile(i, j), row.substring(j, j + 1), fen);
+            }
+        }
         return board;
+    }
+
+    public String computedFEN(String fen) {
+        StringBuilder builder = new StringBuilder();
+        for (String s : fen.split("")) {
+            if (s.matches("\\d")) {
+                builder.append("#".repeat(Integer.parseInt(s)));
+            } else {
+                builder.append(s);
+            }
+        }
+        return builder.toString();
+    }
+
+    public PieceWrapper fromString(Tile tile, String piece, String fen) {
+        String castleState = fen.split(" ")[2];
+        boolean K = castleState.contains("K");
+        boolean Q = castleState.contains("Q");
+        boolean k = castleState.contains("k");
+        boolean q = castleState.contains("q");
+        return switch (piece) {
+            case "R" -> {
+                if (tile.equals(new Tile(7, 0))) {
+                    yield new Rook(true, tile, PieceWrapper.RookSide.QUEENSIDE);
+                }
+                if (tile.equals(new Tile(7, 7))) {
+                    yield new Rook(true, tile, PieceWrapper.RookSide.KINGSIDE);
+                }
+                yield new Rook(true, tile);
+            }
+            case "N" -> new Knight(true, tile);
+            case "B" -> {
+                if (tile.row + tile.column % 2 == 0) {
+                    yield new Bishop(true, new Tile(7, 5));
+                }
+                yield new Bishop(true, new Tile(7, 2));
+            }
+            case "Q" -> new Queen(true, tile);
+            case "K" -> {
+                if (K && Q && tile.equals(new Tile(7, 3))) {
+                    yield new King(true, tile);
+                }
+                yield new King(true, tile);
+            }
+            case "P" -> {
+                Pawn p = new Pawn(true, new Tile(6, tile.column));
+                if (tile.row != 6) {
+                    p.incrementMoves();
+                }
+                yield p;
+            }
+            case "r" -> {
+                if (tile.equals(new Tile(0, 0))) {
+                    yield new Rook(false, tile, PieceWrapper.RookSide.QUEENSIDE);
+                }
+                if (tile.equals(new Tile(0, 7))) {
+                    yield new Rook(false, tile, PieceWrapper.RookSide.KINGSIDE);
+                }
+                yield new Rook(false, tile);
+            }
+            case "n" -> new Knight(false, tile);
+            case "b" -> {
+                if (tile.row + tile.column % 2 == 0) {
+                    yield new Bishop(false, new Tile(0, 2));
+                }
+                yield new Bishop(false, new Tile(0, 5));
+            }
+            case "q" -> new Queen(false, tile);
+            case "k" -> {
+                if (K && Q && tile.equals(new Tile(0, 3))) {
+                    yield new King(false, tile);
+                }
+                yield new King(false, tile);
+            }
+            case "p" -> {
+                Pawn p = new Pawn(false, new Tile(1, tile.column));
+                if (tile.row != 1) {
+                    p.incrementMoves();
+                }
+                yield p;
+            }
+            default -> null;
+        };
+    }
+
+    public GameManager(ChessBoard board, String fen) {
+        this.board = board;
+        this.internalBoard = fromFEN(fen);
+        refreshBoard(ChessBoard.WHITE);
+        this.gamePlay = new GamePlay(this);
+        this.enPassant = Tile.parseTile(fen.split(" ")[3]);
+        this.enPassantPiece = null;
     }
 
     public GameManager(ChessBoard board) {
@@ -35,15 +144,32 @@ public class GameManager {
         this.internalBoard = new PieceWrapper[8][8];
         setupPieces();
         refreshBoard(ChessBoard.WHITE);
-        this.gamePlay = new GamePlay();
+        this.gamePlay = new GamePlay(this);
         this.enPassant = null;
         this.enPassantPiece = null;
     }
 
-    public void movePiece(Tile from, Tile to, PieceWrapper[][] board) {
-        movePiece(board, new SimpleMove(from, to, board));
+    public void movePiece(Tile from, Tile to, PieceWrapper[][] board, PieceWrapper... promotionPiece) {
+        movePiece(board, new SimpleMove(from, to, board, promotionPiece));
         refreshBoard(ChessBoard.WHITE);
+        if (Main.COMPUTER && (gamePlay.isWhiteToMove() != ChessBoard.WHITE)) {
+            Main.stockFish.getBestMove(generateFENString(board, gamePlay.isWhiteToMove(), new CastleState(gamePlay.isCastleWhiteKing(), gamePlay.isCastleBlackKing(), gamePlay.isCastleWhiteQueen(), gamePlay.isCastleBlackQueen()), enPassant, gamePlay.getFullMoveCounter(), gamePlay.getHalfMoveCounter()), (int) (ChessBoard.COMPUTER_WAIT_TIME * 1000));
+        }
     }
+
+    public void endGame() {
+        if (isCheckmated(internalBoard, gamePlay.isWhiteToMove())) {
+            JOptionPane.showMessageDialog(null, (gamePlay.isWhiteToMove() ? "Black" : "White") + " wins by checkmate", "Game over", JOptionPane.INFORMATION_MESSAGE);
+        }
+        if (isStalemate(internalBoard)) {
+            JOptionPane.showMessageDialog(null, "Game drawn by stalemate", "Game over", JOptionPane.INFORMATION_MESSAGE);
+        }
+        if (gamePlay.getFiftyMoveRule() >= 50) {
+            JOptionPane.showMessageDialog(null, "Game draw by fifty-move rule", "Game over", JOptionPane.INFORMATION_MESSAGE);
+        }
+    }
+
+
 
     public boolean canLegallyMove(SimpleMove move) {
         return move.getPiece().isWhite() == gamePlay.isWhiteToMove();
@@ -151,7 +277,7 @@ public class GameManager {
             if (Math.abs(toCol - startingCol) == 2) {
                 if (toCol > startingCol) {
                     Tile rook = getRook(board, PieceWrapper.RookSide.QUEENSIDE, king.isWhite());
-                    assert rook != null;
+                    if (rook == null) return;
                     PieceWrapper temp = board[rook.row][rook.column];
                     board[rook.row][rook.column] = null;
                     board[rook.row][rook.column - 3] = temp;
@@ -163,7 +289,7 @@ public class GameManager {
                     }
                 } else if (toCol < startingCol) {
                     Tile rook = getRook(board, PieceWrapper.RookSide.KINGSIDE, king.isWhite());
-                    assert rook != null;
+                    if (rook == null) return;
                     PieceWrapper temp = board[rook.row][rook.column];
                     board[rook.row][rook.column] = null;
                     board[rook.row][rook.column + 2] = temp;
@@ -184,7 +310,9 @@ public class GameManager {
             for (int j = 0; j < 8; j++) {
                 Tile tile = new Tile(i, j);
                 if (board[i][j] instanceof Rook rook) {
-                    if (rook.getSide().equals(side) && rook.isWhite() == white) {
+                    PieceWrapper.RookSide rookSide = rook.getSide();
+                    if (rookSide == null) continue;
+                    if (rookSide.equals(side) && rook.isWhite() == white) {
                         return tile;
                     }
                 }
@@ -201,8 +329,10 @@ public class GameManager {
             int toCol = move.getTo().column;
             if (Math.abs(toCol - startingCol) == 2) {
                 if (toCol > startingCol) {
+                    if (getRook(board, PieceWrapper.RookSide.QUEENSIDE, king.isWhite()) == null) return null;
                     return (king.isWhite() ? gamePlay.isCastleWhiteQueen() : gamePlay.isCastleBlackQueen()) ? CastleSide.QUEENSIDE : null;
                 } else if (toCol < startingCol) {
+                    if (getRook(board, PieceWrapper.RookSide.KINGSIDE, king.isWhite()) == null) return null;
                     return (king.isWhite() ? gamePlay.isCastleWhiteKing() : gamePlay.isCastleBlackKing()) ? CastleSide.KINGSIDE : null;
                 }
             }
@@ -300,24 +430,19 @@ public class GameManager {
             movePieceInternal(board, move);
             generateEnPassantTile(move);
             move.getPiece().incrementMoves();
-
             gamePlay.movePiece(move, board);
         }
     }
 
-    public void managePromotion(PieceWrapper[][] board, SimpleMove move) {
-        if (!(move.getPiece() instanceof Pawn)) return;
-        if (move.getTo().row == 7) {
-            // black promotion
-
-        } else if (move.getTo().row == 0) {
-            // white promotion
+    public void cleanUpPawnPromotion(PieceWrapper[][] board, SimpleMove move) {
+        PieceWrapper piece = move.getPiece();
+        Tile to = move.getTo();
+        if (piece instanceof Pawn && (to.row == 7 || to.row == 0) && move.getPromotionPiece() != null) {
+            board[to.row][to.column] = move.getPromotionPiece();
         }
     }
 
-
     public PieceWrapper[][] movePieceInternal(PieceWrapper[][] board, SimpleMove move) {
-
         cleanUpCastleMove(board, move, true);
         cleanUpEnPassantCapture(board, move);
 
@@ -330,36 +455,47 @@ public class GameManager {
                 board[to.row][to.column] = temp;
             }
         }
+
+        cleanUpPawnPromotion(board, move);
         return board;
     }
 
     public void setupPieces() {
         setInternalPiece(new King(true, new Tile(0, 3)), new Tile(0, 3));
-        //setInternalPiece(new Queen(true, new Tile(0, 4)), new Tile(0, 4));
-        //setInternalPiece(new Bishop(true, new Tile(0, 2)), new Tile(0, 2));
-        //setInternalPiece(new Bishop(true, new Tile(0, 5)), new Tile(0, 5));
-        //setInternalPiece(new Knight(true, new Tile(0, 1)), new Tile(0, 1));
-        //setInternalPiece(new Knight(true, new Tile(0, 6)), new Tile(0, 6));
-        //setInternalPiece(new Rook(true, new Tile(0, 0), PieceWrapper.RookSide.KINGSIDE), new Tile(0, 0));
-        //setInternalPiece(new Rook(true, new Tile(0, 7), PieceWrapper.RookSide.QUEENSIDE), new Tile(0, 7));
+        setInternalPiece(new Queen(true, new Tile(0, 4)), new Tile(0, 4));
+        setInternalPiece(new Bishop(true, new Tile(0, 2)), new Tile(0, 2));
+        setInternalPiece(new Bishop(true, new Tile(0, 5)), new Tile(0, 5));
+        setInternalPiece(new Knight(true, new Tile(0, 1)), new Tile(0, 1));
+        setInternalPiece(new Knight(true, new Tile(0, 6)), new Tile(0, 6));
+        setInternalPiece(new Rook(true, new Tile(0, 0), PieceWrapper.RookSide.KINGSIDE), new Tile(0, 0));
+        setInternalPiece(new Rook(true, new Tile(0, 7), PieceWrapper.RookSide.QUEENSIDE), new Tile(0, 7));
         setInternalPiece(new King(false, new Tile(7, 3)), new Tile(7, 3));
-        //setInternalPiece(new Queen(false, new Tile(7, 4)), new Tile(7, 4));
-        //setInternalPiece(new Bishop(false, new Tile(7, 2)), new Tile(7, 2));
-        //setInternalPiece(new Bishop(false, new Tile(7, 5)), new Tile(7, 5));
-        //setInternalPiece(new Knight(false, new Tile(7, 1)), new Tile(7, 1));
-        //setInternalPiece(new Knight(false, new Tile(7, 6)), new Tile(7, 6));
-        //setInternalPiece(new Rook(false, new Tile(7, 0), PieceWrapper.RookSide.KINGSIDE), new Tile(7, 0));
-        //setInternalPiece(new Rook(false, new Tile(7, 7), PieceWrapper.RookSide.QUEENSIDE), new Tile(7, 7));
+        setInternalPiece(new Queen(false, new Tile(7, 4)), new Tile(7, 4));
+        setInternalPiece(new Bishop(false, new Tile(7, 2)), new Tile(7, 2));
+        setInternalPiece(new Bishop(false, new Tile(7, 5)), new Tile(7, 5));
+        setInternalPiece(new Knight(false, new Tile(7, 1)), new Tile(7, 1));
+        setInternalPiece(new Knight(false, new Tile(7, 6)), new Tile(7, 6));
+        setInternalPiece(new Rook(false, new Tile(7, 0), PieceWrapper.RookSide.KINGSIDE), new Tile(7, 0));
+        setInternalPiece(new Rook(false, new Tile(7, 7), PieceWrapper.RookSide.QUEENSIDE), new Tile(7, 7));
 
         for (int i = 0; i < 8; i++) {
-            //setInternalPiece(new Pawn(true, new Tile(1, i)), new Tile(1, i));
-            //setInternalPiece(new Pawn(false, new Tile(6, i)), new Tile(6, i));
+            setInternalPiece(new Pawn(true, new Tile(1, i)), new Tile(1, i));
+            setInternalPiece(new Pawn(false, new Tile(6, i)), new Tile(6, i));
         }
-        setInternalPiece(new Pawn(true, new Tile(1, 0)), new Tile(1, 0));
     }
 
     public void setInternalPiece(PieceWrapper piece, Tile tile) {
         internalBoard[tile.row][tile.column] = piece;
+    }
+
+    public void printBoardRaw(PieceWrapper[][] board) {
+        for (int i = 0; i < 8; i++) {
+            for (int j = 0; j < 8; j++) {
+                PieceWrapper wrapper = board[i][j];
+                System.out.print(wrapper == null ? " " : wrapper.getType().getFENNotation());
+            }
+            System.out.print("\n");
+        }
     }
 
     public void refreshBoard(boolean viewFromWhite) {
@@ -425,6 +561,13 @@ public class GameManager {
             return String.valueOf(row + 1);
         }
 
+        public static Tile parseTile(String tileString) {
+            if (tileString.equals("-")) return null;
+            int col = 'a' - (tileString.charAt(0) - 7);
+            int row = Integer.parseInt(tileString.substring(1)) - 1;
+            return new Tile(row, col);
+        }
+
         @Override
         public boolean equals(Object o) {
             if (this == o) return true;
@@ -446,7 +589,9 @@ public class GameManager {
                 PieceWrapper pieceWrapper = board[i][j];
                 if (pieceWrapper == null) continue;
                 if (pieceWrapper.isWhite() != white) continue;
-                simpleMoves.addAll(possibleMoves(board, new Tile(i, j)));
+                List<SimpleMove> moves = possibleMoves(board, new Tile(i, j));
+                if (moves == null) continue;
+                simpleMoves.addAll(moves);
             }
         }
         return simpleMoves;
@@ -466,7 +611,14 @@ public class GameManager {
             for (int j = 0; j < 8; j++) {
                 Tile to = new Tile(i, j);
                 SimpleMove possibleMove = new SimpleMove(tile, to, board);
-                if (canMove(possibleMove, board) && notBlocked(board, tile, to) && kingAvoidsCheck(board, possibleMove)) {
+                if ((to.row == 7 || to.row == 0) && possibleMove.getPiece() instanceof Pawn) {
+                    if (canMove(possibleMove, board) && notBlocked(board, tile, to) && kingAvoidsCheck(board, possibleMove)) {
+                        possibleMoves.add(new SimpleMove(tile, to, board, new Queen(possibleMove.getPiece().isWhite(), to)));
+                        possibleMoves.add(new SimpleMove(tile, to, board, new Rook(possibleMove.getPiece().isWhite(), to)));
+                        possibleMoves.add(new SimpleMove(tile, to, board, new Bishop(possibleMove.getPiece().isWhite(), to)));
+                        possibleMoves.add(new SimpleMove(tile, to, board, new Knight(possibleMove.getPiece().isWhite(), to)));
+                    }
+                } else if (canMove(possibleMove, board) && notBlocked(board, tile, to) && kingAvoidsCheck(board, possibleMove)) {
                     possibleMoves.add(possibleMove);
                 }
             }
@@ -506,5 +658,91 @@ public class GameManager {
             enPassantPiece = null;
             enPassant = null;
         }
+    }
+
+    public static class CastleState {
+        private final boolean K, k, Q, q;
+
+        public CastleState(boolean K, boolean k, boolean Q, boolean q) {
+            this.K = K;
+            this.k = k;
+            this.Q = Q;
+            this.q = q;
+        }
+
+        public boolean whiteKing() {
+            return K;
+        }
+        public boolean blackKing() {
+            return k;
+        }
+
+        public boolean whiteQueen() {
+            return Q;
+        }
+
+        public boolean blackQueen() {
+            return q;
+        }
+
+        @Override
+        public String toString() {
+            return (K ? "K" : "") + (Q ? "Q" : "") + (k ? "k" : "") + (q ? "q" : "");
+        }
+
+        public CastleState getState() {
+            return new CastleState(K, k, Q, q);
+        }
+
+        public static CastleState getState(boolean K, boolean k, boolean Q, boolean q) {
+            return new CastleState(K, k, Q, q);
+        }
+    }
+
+    public String generateCurrentFEN() {
+        return generateFENString(internalBoard, gamePlay.isWhiteToMove(), new CastleState(gamePlay.isCastleWhiteKing(), gamePlay.isCastleBlackKing(), gamePlay.isCastleWhiteQueen(), gamePlay.isCastleBlackQueen()), enPassant, gamePlay.getFullMoveCounter(), gamePlay.getHalfMoveCounter());
+    }
+
+    public static String generateFENString(PieceWrapper[][] board, boolean whiteToMove, CastleState state, Tile enPassant, int fullMoveCount, int halfMoveCount) {
+        StringBuilder builder = new StringBuilder();
+        for (int i = 7; i >= 0; i--) {
+            int empty = 0;
+            for (int j = 7; j >= 0; j--) {
+                PieceWrapper wrapper = board[i][j];
+                if (wrapper == null) {
+                    empty++;
+                } else {
+                    if (empty != 0) {
+                        builder.append(empty);
+                        empty = 0;
+                    }
+                    builder.append(wrapper.getType().getFENNotation());
+                }
+            }
+            if (empty != 0) {
+                builder.append(empty);
+            }
+            if (i != 0) builder.append("/");
+        }
+
+        builder.append(" ");
+        builder.append(whiteToMove ? "w" : "b");
+        builder.append(" ");
+        String castleState = state.toString();
+        builder.append(castleState);
+        if (castleState.length() == 0) {
+            builder.append("- ");
+        } else {
+            builder.append(" ");
+        }
+        if (enPassant == null) {
+            builder.append("- ");
+        } else {
+            builder.append(enPassant).append(" ");
+        }
+        builder.append(halfMoveCount).append(" ");
+        builder.append(fullMoveCount);
+
+        return builder.toString();
     }
 }

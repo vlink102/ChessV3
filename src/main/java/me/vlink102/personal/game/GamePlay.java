@@ -3,6 +3,7 @@ package me.vlink102.personal.game;
 import me.vlink102.personal.game.pieces.King;
 import me.vlink102.personal.game.pieces.Pawn;
 import me.vlink102.personal.game.pieces.Rook;
+import me.vlink102.personal.internal.ChessBoard;
 
 public class GamePlay {
     private boolean whiteToMove;
@@ -12,8 +13,11 @@ public class GamePlay {
 
     private boolean castleWhiteKing, castleWhiteQueen, castleBlackKing, castleBlackQueen;
 
-    public GamePlay() {
+    private final GameManager manager;
+
+    public GamePlay(GameManager manager) {
         reset();
+        this.manager = manager;
     }
 
     public boolean isWhiteToMove() {
@@ -102,9 +106,13 @@ public class GamePlay {
             }
         }
         whiteToMove = !whiteToMove;
+        manager.refreshBoard(ChessBoard.WHITE);
     }
 
     private void disableRook(Rook rook) {
+        if (rook.getSide() == null) {
+            return;
+        }
         if (rook.isWhite()) {
             switch (rook.getSide()) {
                 case KINGSIDE -> castleWhiteKing = false;

@@ -2,22 +2,32 @@ package me.vlink102.personal.game;
 
 import me.vlink102.personal.game.pieces.King;
 import me.vlink102.personal.game.pieces.Pawn;
+import me.vlink102.personal.internal.ChessBoard;
+import me.vlink102.personal.internal.PieceEnum;
 
 public class SimpleMove {
     private final GameManager.Tile from;
     private final GameManager.Tile to;
     private final PieceWrapper piece;
+    private final PieceWrapper[] promotionPieces;
 
-    public SimpleMove(GameManager.Tile from, GameManager.Tile to, final PieceWrapper piece) {
+    public SimpleMove(GameManager.Tile from, GameManager.Tile to, final PieceWrapper piece, PieceWrapper... promotionPieces) {
         this.from = from;
         this.to = to;
         this.piece = piece;
+        this.promotionPieces = promotionPieces;
     }
 
-    public SimpleMove(GameManager.Tile from, GameManager.Tile to, final PieceWrapper[][] board) {
+    public SimpleMove(GameManager.Tile from, GameManager.Tile to, final PieceWrapper[][] board, PieceWrapper... promotionPieces) {
         this.piece = board[from.row()][from.column()];
         this.from = from;
         this.to = to;
+        this.promotionPieces = promotionPieces;
+    }
+
+    public PieceWrapper getPromotionPiece() {
+        if (promotionPieces.length == 0) return null;
+        return promotionPieces[0];
     }
 
     public GameManager.Tile getFrom() {
@@ -51,6 +61,7 @@ public class SimpleMove {
         boolean isCastle = (piece instanceof King && Math.abs(to.column() - from.column()) == 2);
         boolean isEnPassant = (piece instanceof Pawn && manager.getEnPassant() != null && manager.getEnPassant().equals(to));
         boolean capture = (board[to.row()][to.column()] != null);
+        boolean isPromotion = (piece instanceof Pawn && (to.row() == 7 || to.row() == 0));
         String abbreviation = piece.getType().getNamedNotation();
 
 
@@ -82,6 +93,12 @@ public class SimpleMove {
         }
 
         if (!isCastle) builder.append(to);
+
+        if (isPromotion) {
+            builder.append("=");
+            builder.append(promotionPieces[0].getType().getNamedNotation());
+        }
+
         if (manager.isKingInCheck(result, !piece.isWhite())) {
             if (manager.isCheckmated(result, !piece.isWhite())) {
                 builder.append("#");
@@ -90,5 +107,26 @@ public class SimpleMove {
             }
         }
         return builder.toString();
+    }
+
+    public static SimpleMove parseStockFishMove(PieceWrapper[][] board, String stockFishMove) {
+        String fromString = stockFishMove.substring(0,2);
+        String toString = stockFishMove.substring(2, 4);
+        GameManager.Tile from = GameManager.Tile.parseTile(fromString);
+        GameManager.Tile to = GameManager.Tile.parseTile(toString);
+        if (stockFishMove.length() == 4) {
+            return new SimpleMove(from, to, board);
+        } else {
+            String promotionPieceString = stockFishMove.substring(4);
+            int pieceNum = switch (promotionPieceString) {
+                case "q" -> 0;
+                case "r" -> 1;
+                case "b" -> 2;
+                case "n" -> 3;
+                default -> -1;
+            };
+            boolean isWhite = board[from.row()][from.column()].isWhite();
+            return new SimpleMove(from, to, board, ChessBoard.getFromInteger(pieceNum, isWhite, to));
+        }
     }
 }

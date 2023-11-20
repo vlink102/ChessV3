@@ -29,4 +29,15 @@ public enum PieceEnum {
     public String getNamedNotation() {
         return namedNotation;
     }
+
+    public String getFENNotation() {
+        if (this == WHITE_PAWN || this == BLACK_PAWN) {
+            return (this == WHITE_PAWN ? "P" : "p");
+        }
+        if (this.toString().startsWith("WHITE")) {
+            return getNamedNotation().toUpperCase();
+        } else {
+            return getNamedNotation().toLowerCase();
+        }
+    }
 }

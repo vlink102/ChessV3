@@ -2,7 +2,9 @@ package me.vlink102.personal.internal;
 
 import me.vlink102.personal.Main;
 import me.vlink102.personal.game.GameManager;
+import me.vlink102.personal.game.PieceWrapper;
 import me.vlink102.personal.game.SimpleMove;
+import me.vlink102.personal.game.pieces.*;
 
 import javax.swing.*;
 import java.awt.*;
@@ -10,6 +12,7 @@ import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.awt.event.MouseMotionListener;
 import java.io.IOException;
+import java.util.Objects;
 import java.util.StringJoiner;
 
 public class ChessBoard extends JFrame implements MouseListener, MouseMotionListener {
@@ -22,6 +25,7 @@ public class ChessBoard extends JFrame implements MouseListener, MouseMotionList
 
     private final int pieceSize;
     public static final boolean WHITE = true;
+    public static final float COMPUTER_WAIT_TIME = 2.0F; // seconds
 
     public JPanel getChessBoard() {
         return chessBoard;
@@ -29,8 +33,50 @@ public class ChessBoard extends JFrame implements MouseListener, MouseMotionList
 
     private final GameManager manager;
 
+    public GameManager getManager() {
+        return manager;
+    }
+
     public int getPieceSize() {
         return pieceSize;
+    }
+
+    public static class EvalBoard extends JFrame {
+
+        private final JLabel label;
+
+        public void setEval(float eval) {
+            label.setText("Evaluation: " + (eval > 0 ? "+" : "") + eval);
+        }
+
+        public EvalBoard(int size) {
+            Dimension dimension = new Dimension(size / 2, size);
+            this.setPreferredSize(dimension);
+            this.setTitle("Evaluation");
+            try {
+                this.setIconImage(Main.fileUtils.getImage("wp"));
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+
+            JPanel panel = new JPanel();
+            panel.setLayout(new BorderLayout());
+            label = new JLabel();
+            panel.add(label);
+            this.getContentPane().add(panel);
+
+            this.setDefaultCloseOperation(DISPOSE_ON_CLOSE);
+            this.setResizable(false);
+            this.pack();
+            this.setLocationRelativeTo(null);
+            this.setVisible(true);
+        }
+    }
+
+    private final EvalBoard evalBoard;
+
+    public EvalBoard getEvalBoard() {
+        return evalBoard;
     }
 
     public ChessBoard(int size) {
@@ -69,7 +115,9 @@ public class ChessBoard extends JFrame implements MouseListener, MouseMotionList
         this.setLocationRelativeTo(null);
         this.setVisible(true);
 
-        this.manager = new GameManager(this);
+        this.manager = new GameManager(this, "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+        this.evalBoard = new EvalBoard(size);
+
     }
 
     public void mousePressed(MouseEvent e) {
@@ -91,7 +139,7 @@ public class ChessBoard extends JFrame implements MouseListener, MouseMotionList
 
         StringJoiner joiner = new StringJoiner(", ");
         int i = 0;
-        for (SimpleMove possibleMove : manager.possibleMoves(manager.getInternalBoard(), GameManager.Tile.fromPoint(WHITE, clicked, pieceSize))) {
+        for (SimpleMove possibleMove : Objects.requireNonNull(manager.possibleMoves(manager.getInternalBoard(), GameManager.Tile.fromPoint(WHITE, clicked, pieceSize)))) {
             joiner.add(possibleMove.deepToString(manager, manager.getInternalBoard()));
             i++;
         }
@@ -107,7 +155,7 @@ public class ChessBoard extends JFrame implements MouseListener, MouseMotionList
         chessPiece.setLocation(x - (chessPiece.getWidth() / 2), y - (chessPiece.getWidth() / 2));
     }
 
-    public void mouseReleased(MouseEvent e) {
+    public synchronized void mouseReleased(MouseEvent e) {
         layeredPane.setCursor(null);
 
         if (chessPiece == null) return;
@@ -136,18 +184,34 @@ public class ChessBoard extends JFrame implements MouseListener, MouseMotionList
         GameManager.Tile from = GameManager.Tile.fromPoint(WHITE, clicked, pieceSize);
         GameManager.Tile to = GameManager.Tile.fromPoint(WHITE, released, pieceSize);
         if (from.equals(to)) return;
-
-        manager.movePiece(from, to, manager.getInternalBoard());
-        if (manager.isCheckmated(manager.getInternalBoard(), WHITE)) {
-            JOptionPane.showMessageDialog(null, "Black wins by checkmate", "Game over", JOptionPane.INFORMATION_MESSAGE);
-        } else if (manager.isCheckmated(manager.getInternalBoard(), !WHITE)) {
-            JOptionPane.showMessageDialog(null, "White wins by checkmate", "Game over", JOptionPane.INFORMATION_MESSAGE);
-        } else if (manager.isStalemate(manager.getInternalBoard())) {
-            JOptionPane.showMessageDialog(null, "Game drawn by stalemate", "Game over", JOptionPane.INFORMATION_MESSAGE);
+        final PieceWrapper piece = manager.getInternalBoard()[from.row()][from.column()];
+        if ((to.row() == 7 || to.row() == 0) && piece instanceof Pawn) {
+            manager.movePiece(from, to, manager.getInternalBoard(), getFromInteger(0 /* TODO Piece Promotion Panel */, piece.isWhite(), to));
+        } else {
+            manager.movePiece(from, to, manager.getInternalBoard());
+            manager.endGame();
         }
 
         released = null;
         clicked = null;
+    }
+
+    public static PieceWrapper getFromInteger(int piece, boolean white, GameManager.Tile startingSquare) {
+        switch (piece) {
+            case 0 -> {
+                return new Queen(white, startingSquare);
+            }
+            case 1 -> {
+                return new Rook(white, startingSquare);
+            }
+            case 2 -> {
+                return new Bishop(white, startingSquare);
+            }
+            case 3 -> {
+                return new Knight(white, startingSquare);
+            }
+        }
+        return null;
     }
 
     public void mouseClicked(MouseEvent e) {}

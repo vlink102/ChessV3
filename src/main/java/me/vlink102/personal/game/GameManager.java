@@ -341,6 +341,7 @@ public class GameManager {
     public @Nullable CastleSide canCastle(PieceWrapper[][] board, SimpleMove move) {
         PieceWrapper piece = move.getPiece();
         if (piece instanceof King king && move.getTo().row == move.getFrom().row && Math.abs(move.getTo().column - move.getFrom().column) == 2) {
+            if (isKingInCheck(board, king.isWhite())) return null;
             if (!canCastleThroughCheckedTiles(board, move)) return null;
             int startingCol = move.getFrom().column;
             int toCol = move.getTo().column;

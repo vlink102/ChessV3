@@ -121,6 +121,7 @@ public class ChessBoard extends JFrame implements MouseListener, MouseMotionList
         this.setVisible(true);
 
         this.manager = new GameManager(this, "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+        //r3k2r/pbppqpb1/1pn3p1/7p/1N2p1n1/1PP4N/PB1P1PPP/2QRKR2 w kq - 0 1
         this.evalBoard = new EvalBoard(size);
 
     }

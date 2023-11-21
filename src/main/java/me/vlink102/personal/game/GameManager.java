@@ -130,11 +130,24 @@ public class GameManager {
         };
     }
 
+    public GamePlay gamePlayFromFEN(String fen) {
+        GamePlay play = new GamePlay(this);
+        String castles = fen.split(" ")[2];
+        play.setCastleWhiteKing(castles.contains("K"));
+        play.setCastleBlackKing(castles.contains("k"));
+        play.setCastleWhiteQueen(castles.contains("Q"));
+        play.setCastleBlackQueen(castles.contains("q"));
+        play.setWhiteToMove(fen.split(" ")[1].equalsIgnoreCase("w"));
+        play.setHalfMoveCounter(Integer.parseInt(fen.split(" ")[4]));
+        play.setFullMoveCounter(Integer.parseInt(fen.split(" ")[5]));
+        return play;
+    }
+
     public GameManager(ChessBoard board, String fen) {
         this.board = board;
         this.internalBoard = fromFEN(fen);
         refreshBoard(ChessBoard.WHITE);
-        this.gamePlay = new GamePlay(this);
+        this.gamePlay = gamePlayFromFEN(fen);
         this.enPassant = Tile.parseTile(fen.split(" ")[3]);
         this.enPassantPiece = null;
     }
@@ -152,6 +165,10 @@ public class GameManager {
     public void movePiece(Tile from, Tile to, PieceWrapper[][] board, PieceWrapper... promotionPiece) {
         movePiece(board, new SimpleMove(from, to, board, promotionPiece));
         refreshBoard(ChessBoard.WHITE);
+        computerMove(board);
+    }
+
+    public void computerMove(PieceWrapper[][] board) {
         if (Main.COMPUTER && (gamePlay.isWhiteToMove() != ChessBoard.WHITE)) {
             Main.stockFish.getBestMove(generateFENString(board, gamePlay.isWhiteToMove(), new CastleState(gamePlay.isCastleWhiteKing(), gamePlay.isCastleBlackKing(), gamePlay.isCastleWhiteQueen(), gamePlay.isCastleBlackQueen()), enPassant, gamePlay.getFullMoveCounter(), gamePlay.getHalfMoveCounter()), (int) (ChessBoard.COMPUTER_WAIT_TIME * 1000));
         }

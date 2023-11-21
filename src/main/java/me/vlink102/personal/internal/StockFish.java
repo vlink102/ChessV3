@@ -1,14 +1,17 @@
 package me.vlink102.personal.internal;
 
+import me.vlink102.personal.Main;
 import me.vlink102.personal.game.GameManager;
 import me.vlink102.personal.game.SimpleMove;
+import org.apache.commons.io.IOUtils;
 
+import javax.naming.Context;
 import java.awt.*;
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.OutputStreamWriter;
+import java.io.*;
 import java.lang.reflect.InvocationTargetException;
+import java.net.URI;
+import java.net.URL;
+import java.nio.file.Paths;
 import java.util.concurrent.CompletableFuture;
 
 public class StockFish {
@@ -24,14 +27,36 @@ public class StockFish {
 
     private static final String PATH = "C:\\Users\\Ethan\\Desktop\\stockfish\\stockfish\\stockfish-windows-x86-64-avx2.exe";
 
+    public static final String PREFIX = "stream2file";
+    public static final String SUFFIX = ".tmp";
+
+    public static File stream2file (InputStream in) throws IOException {
+        final File tempFile = File.createTempFile(PREFIX, SUFFIX);
+        tempFile.deleteOnExit();
+        try (FileOutputStream out = new FileOutputStream(tempFile)) {
+            IOUtils.copy(in, out);
+        }
+        return tempFile;
+    }
+
+
     public boolean startEngine() {
         try {
-            engineProcess = Runtime.getRuntime().exec(PATH);
+            InputStream is = Main.class.getResourceAsStream("/stockfish/stockfish-windows-x86-64-avx2.exe");
+            File file = stream2file(is);
+            engineProcess = Runtime.getRuntime().exec(file.getAbsolutePath());
             processReader = new BufferedReader(new InputStreamReader(
                     engineProcess.getInputStream()));
             processWriter = new OutputStreamWriter(
                     engineProcess.getOutputStream());
+            EventQueue.invokeLater(new Runnable() {
+                @Override
+                public void run() {
+                    manager.computerMove(manager.getInternalBoard());
+                }
+            });
         } catch (Exception e) {
+            e.printStackTrace();
             return false;
         }
         return true;
@@ -69,11 +94,9 @@ public class StockFish {
         try {
             while (true) {
                 String text = processReader.readLine();
-                if (text.startsWith("bestmove ")) {
-                    buffer.append(text).append("\n");
+                buffer.append(text).append("\n");
+                if (text.startsWith("bestmove")) {
                     break;
-                } else {
-                    buffer.append(text).append("\n");
                 }
             }
         } catch (Exception e) {
@@ -89,29 +112,46 @@ public class StockFish {
         CompletableFuture<String> move = CompletableFuture.supplyAsync(this::getBestMoveOutput);
         move.thenAccept((data) -> {
             float eval = 0.0f;
+            int mateNo = 0;
             String[] dump = data.split("\n");
             for (int i = dump.length - 1; i >= 0; i--) {
                 if (dump[i].startsWith("info depth ")) {
-                    if (dump[i].split("score cp ")[1].split(" nodes")[0].matches("^-?[0-9]\\d*(\\.\\d+)?$")) {
-                        eval = Float.parseFloat(dump[i].split("score cp ")[1].split(" nodes")[0]);
-                    } else {
-                        if (dump[i].split("score cp ")[1].split(" upperbound nodes")[0].matches("^-?[0-9]\\d*(\\.\\d+)?$")) {
-                            eval = Float.parseFloat(dump[i].split("score cp ")[1].split(" upperbound nodes")[0]);
+                    if (dump[i].contains("cp")) {
+                        if (dump[i].split("score cp ")[1].split(" nodes")[0].matches("^-?[0-9]\\d*(\\.\\d+)?$")) {
+                            eval = Float.parseFloat(dump[i].split("score cp ")[1].split(" nodes")[0]);
+                        } else if (dump[i].split("score cp ")[1].contains("upperbound")){
+                            if (dump[i].split("score cp ")[1].split(" upperbound nodes")[0].matches("^-?[0-9]\\d*(\\.\\d+)?$")) {
+                                eval = Float.parseFloat(dump[i].split("score cp ")[1].split(" upperbound nodes")[0]);
+                            } else {
+                                System.out.println("SECOND ORDER=" + dump[i] + "\n     " + dump[i].split("score cp ")[1].split(" upperbound nodes")[0]);
+                            }
+                        }
+                    } else if (dump[i].split("score ")[1].contains("mate")) {
+                        if (dump[i].split("score mate ")[1].split(" nodes")[0].matches("^-?[0-9]\\d*(\\.\\d+)?$")) {
+                            mateNo = Integer.parseInt(dump[i].split("score mate ")[1].split(" nodes")[0]);
                         } else {
-                            System.out.println(dump[i]);
+                            System.out.println("THIRD ORDER=" + dump[i]);
                         }
                     }
                 }
             }
-            String newData = data.split("bestmove ")[1].split(" ")[0];
+            String newData = data.split("bestmove ")[1];
+            if (newData.contains("\s")) {
+                newData = newData.split(" ")[0];
+            }
             SimpleMove parsedMove = SimpleMove.parseStockFishMove(manager.getInternalBoard(), newData);
             manager.movePiece(manager.getInternalBoard(), parsedMove);
-            drawBoard(manager.generateCurrentFEN());
+            //drawBoard(manager.generateCurrentFEN());
 
             try {
                 float finalEval = eval;
+                int finalMateNo = mateNo;
                 EventQueue.invokeAndWait(() -> {
-                    manager.getBoard().getEvalBoard().setEval(finalEval / 100);
+                    if (finalMateNo > 0) {
+                        manager.getBoard().getEvalBoard().setEval(finalMateNo);
+                    } else {
+                        manager.getBoard().getEvalBoard().setEval(finalEval / 100f);
+                    }
                     manager.refreshBoard(ChessBoard.WHITE);
                     manager.getBoard().getContentPane().paintComponents(manager.getBoard().getContentPane().getGraphics());
                     manager.endGame();

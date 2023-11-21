@@ -2,14 +2,11 @@ package me.vlink102.personal;
 
 import com.github.weisj.darklaf.LafManager;
 import com.github.weisj.darklaf.theme.DarculaTheme;
-import me.vlink102.personal.game.GameManager;
-import me.vlink102.personal.game.SimpleMove;
 import me.vlink102.personal.internal.ChessBoard;
 import me.vlink102.personal.internal.FileUtils;
 import me.vlink102.personal.internal.StockFish;
 
 import javax.swing.*;
-import java.lang.reflect.InvocationTargetException;
 
 public class Main {
     public static FileUtils fileUtils;

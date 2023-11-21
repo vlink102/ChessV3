@@ -25,7 +25,7 @@ public class ChessBoard extends JFrame implements MouseListener, MouseMotionList
 
     private final int pieceSize;
     public static final boolean WHITE = true;
-    public static final float COMPUTER_WAIT_TIME = 2.0F; // seconds
+    public static final float COMPUTER_WAIT_TIME = 3; // seconds
 
     public JPanel getChessBoard() {
         return chessBoard;
@@ -45,9 +45,14 @@ public class ChessBoard extends JFrame implements MouseListener, MouseMotionList
 
         private final JLabel label;
 
-        public void setEval(float eval) {
-            label.setText("Evaluation: " + (eval > 0 ? "+" : "") + eval);
+        public void setEval(Number eval) {
+            if (eval instanceof Integer) {
+                label.setText("Evaluation: Mate in " + eval);
+            } else if (eval instanceof Float f) {
+                label.setText("Evaluation: " + (f > 0.0f ? "+" : "") + eval);
+            }
         }
+
 
         public EvalBoard(int size) {
             Dimension dimension = new Dimension(size / 2, size);

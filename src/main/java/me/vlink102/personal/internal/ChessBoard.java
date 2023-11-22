@@ -7,10 +7,13 @@ import me.vlink102.personal.game.SimpleMove;
 import me.vlink102.personal.game.pieces.*;
 
 import javax.swing.*;
+import javax.tools.Tool;
 import java.awt.*;
-import java.awt.event.MouseEvent;
-import java.awt.event.MouseListener;
-import java.awt.event.MouseMotionListener;
+import java.awt.datatransfer.Clipboard;
+import java.awt.datatransfer.DataFlavor;
+import java.awt.datatransfer.StringSelection;
+import java.awt.datatransfer.UnsupportedFlavorException;
+import java.awt.event.*;
 import java.io.IOException;
 import java.util.Objects;
 import java.util.StringJoiner;
@@ -24,7 +27,7 @@ public class ChessBoard extends JFrame implements MouseListener, MouseMotionList
     Point released;
 
     private final int pieceSize;
-    public static final boolean WHITE = true;
+    public static boolean WHITE = true;
     public static final float COMPUTER_WAIT_TIME = 3; // seconds
 
     public JPanel getChessBoard() {
@@ -67,7 +70,9 @@ public class ChessBoard extends JFrame implements MouseListener, MouseMotionList
             JPanel panel = new JPanel();
             panel.setLayout(new BorderLayout());
             label = new JLabel();
-            panel.add(label);
+            panel.add(label, BorderLayout.CENTER);
+            label.setText("Loading Evaluation (Relative Eval)... (NNUE)");
+            label.setFont(new Font("serif", Font.PLAIN, 16));
             this.getContentPane().add(panel);
 
             this.setDefaultCloseOperation(DISPOSE_ON_CLOSE);
@@ -116,14 +121,64 @@ public class ChessBoard extends JFrame implements MouseListener, MouseMotionList
         }
         this.setDefaultCloseOperation(EXIT_ON_CLOSE);
         this.setResizable(false);
+        JMenuBar jMenuBar = new JMenuBar();
+        JMenu menu = new JMenu("Settings");
+        JMenuItem setFEN = new JMenuItem(new AbstractAction("Paste FEN") {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                try {
+                    Toolkit toolkit = Toolkit.getDefaultToolkit();
+                    Clipboard clipboard = toolkit.getSystemClipboard();
+                    String result = (String) clipboard.getData(DataFlavor.stringFlavor);
+                    manager.reset(result);
+                } catch (UnsupportedFlavorException | IOException ex) {
+                    throw new RuntimeException(ex);
+                }
+            }
+        });
+        JMenuItem copyFEN = new JMenuItem(new AbstractAction("Copy FEN") {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                Toolkit.getDefaultToolkit().getSystemClipboard().setContents(new StringSelection(manager.generateCurrentFEN()), null);
+            }
+        });
+        JCheckBoxMenuItem playAsWhite = new JCheckBoxMenuItem("Play as white?");
+        playAsWhite.addItemListener(e -> ChessBoard.WHITE = playAsWhite.isSelected());
+        playAsWhite.setSelected(ChessBoard.WHITE);
+        JCheckBoxMenuItem playAgainstComputer = new JCheckBoxMenuItem("Enable Computer");
+        playAgainstComputer.addItemListener(e -> Main.COMPUTER = playAgainstComputer.isSelected());
+        playAgainstComputer.setSelected(Main.COMPUTER);
+        JMenu commands = new JMenu("Power Actions");
+        JMenuItem resetGame = new JMenuItem(new AbstractAction("Reset Game") {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                manager.reset();
+            }
+        });
+        JMenuItem quitProgram = new JMenuItem(new AbstractAction("Quit Program") {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                System.exit(0);
+            }
+        });
+
+
+        menu.add(setFEN);
+        menu.add(copyFEN);
+        menu.add(playAsWhite);
+        menu.add(playAgainstComputer);
+        commands.add(resetGame);
+        commands.add(quitProgram);
+        jMenuBar.add(menu);
+        jMenuBar.add(commands);
+        this.setJMenuBar(jMenuBar);
         this.pack();
         this.setLocationRelativeTo(null);
         this.setVisible(true);
 
-        this.manager = new GameManager(this, "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+        this.manager = new GameManager(this);
         //r3k2r/pbppqpb1/1pn3p1/7p/1N2p1n1/1PP4N/PB1P1PPP/2QRKR2 w kq - 0 1
         this.evalBoard = new EvalBoard(size);
-
     }
 
     public void mousePressed(MouseEvent e) {

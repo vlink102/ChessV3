@@ -9,21 +9,112 @@ import org.jetbrains.annotations.Nullable;
 
 import javax.swing.*;
 import java.awt.*;
+import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 
 public class GameManager {
-    private final ChessBoard board;
-    private final GamePlay gamePlay;
-
+    private ChessBoard board;
+    private GamePlay gamePlay;
+    private PieceWrapper[][] internalBoard;
     private Tile enPassant;
     private Tile enPassantPiece;
 
-    private final PieceWrapper[][] internalBoard;
+    public GameManager(ChessBoard board, String fen) {
+        this.board = board;
+        this.internalBoard = fromFEN(fen);
+        this.gamePlay = gamePlayFromFEN(fen);
+        this.enPassant = Tile.parseTile(fen.split(" ")[3]);
+        this.enPassantPiece = null;
+        refreshBoard(ChessBoard.WHITE);
+    }
+
+    public GameManager(ChessBoard board) {
+        this.board = board;
+        this.internalBoard = new PieceWrapper[8][8];
+        setupPieces();
+        this.gamePlay = new GamePlay(this);
+        this.enPassant = null;
+        this.enPassantPiece = null;
+        refreshBoard(ChessBoard.WHITE);
+    }
+
+    public void reset(String fen) {
+        this.gamePlay = null;
+        this.internalBoard = null;
+        this.enPassantPiece = null;
+        this.enPassant = null;
+
+        this.internalBoard = fromFEN(fen);
+        this.gamePlay = gamePlayFromFEN(fen);
+        this.enPassant = Tile.parseTile(fen.split(" ")[3]);
+        this.enPassantPiece = null;
+        refreshBoard(ChessBoard.WHITE);
+        EventQueue.invokeLater(() -> {
+            computerMove(internalBoard);
+            Container panel = board.getContentPane();
+            panel.paintComponents(panel.getGraphics());
+        });
+    }
+
+    public void reset() {
+        this.internalBoard = new PieceWrapper[8][8];
+        setupPieces();
+        this.gamePlay = new GamePlay(this);
+        this.enPassant = null;
+        this.enPassantPiece = null;
+        refreshBoard(ChessBoard.WHITE);
+        EventQueue.invokeLater(() -> {
+            computerMove(internalBoard);
+            Container panel = board.getContentPane();
+            panel.paintComponents(panel.getGraphics());
+        });
+    }
+
+    public static String generateFENString(PieceWrapper[][] board, boolean whiteToMove, CastleState state, Tile enPassant, int fullMoveCount, int halfMoveCount) {
+        StringBuilder builder = new StringBuilder();
+        for (int i = 7; i >= 0; i--) {
+            int empty = 0;
+            for (int j = 7; j >= 0; j--) {
+                PieceWrapper wrapper = board[i][j];
+                if (wrapper == null) {
+                    empty++;
+                } else {
+                    if (empty != 0) {
+                        builder.append(empty);
+                        empty = 0;
+                    }
+                    builder.append(wrapper.getType().getFENNotation());
+                }
+            }
+            if (empty != 0) {
+                builder.append(empty);
+            }
+            if (i != 0) builder.append("/");
+        }
+
+        builder.append(" ");
+        builder.append(whiteToMove ? "w" : "b");
+        builder.append(" ");
+        String castleState = state.toString();
+        builder.append(castleState);
+        if (castleState.length() == 0) {
+            builder.append("- ");
+        } else {
+            builder.append(" ");
+        }
+        if (enPassant == null) {
+            builder.append("- ");
+        } else {
+            builder.append(enPassant).append(" ");
+        }
+        builder.append(halfMoveCount).append(" ");
+        builder.append(fullMoveCount);
+
+        return builder.toString();
+    }
 
     public ChessBoard getBoard() {
         return board;
@@ -114,7 +205,7 @@ public class GameManager {
             }
             case "q" -> new Queen(false, tile);
             case "k" -> {
-                if (K && Q && tile.equals(new Tile(0, 3))) {
+                if (k && q && tile.equals(new Tile(0, 3))) {
                     yield new King(false, tile);
                 }
                 yield new King(false, tile);
@@ -143,25 +234,6 @@ public class GameManager {
         return play;
     }
 
-    public GameManager(ChessBoard board, String fen) {
-        this.board = board;
-        this.internalBoard = fromFEN(fen);
-        refreshBoard(ChessBoard.WHITE);
-        this.gamePlay = gamePlayFromFEN(fen);
-        this.enPassant = Tile.parseTile(fen.split(" ")[3]);
-        this.enPassantPiece = null;
-    }
-
-    public GameManager(ChessBoard board) {
-        this.board = board;
-        this.internalBoard = new PieceWrapper[8][8];
-        setupPieces();
-        refreshBoard(ChessBoard.WHITE);
-        this.gamePlay = new GamePlay(this);
-        this.enPassant = null;
-        this.enPassantPiece = null;
-    }
-
     public void movePiece(Tile from, Tile to, PieceWrapper[][] board, PieceWrapper... promotionPiece) {
         movePiece(board, new SimpleMove(from, to, board, promotionPiece));
         refreshBoard(ChessBoard.WHITE);
@@ -185,8 +257,6 @@ public class GameManager {
             JOptionPane.showMessageDialog(null, "Game draw by fifty-move rule", "Game over", JOptionPane.INFORMATION_MESSAGE);
         }
     }
-
-
 
     public boolean canLegallyMove(SimpleMove move) {
         return move.getPiece().isWhite() == gamePlay.isWhiteToMove();
@@ -217,16 +287,6 @@ public class GameManager {
             return enPassant.equals(move.getTo()) && move.getPiece() instanceof Pawn pawn && pawn.canMove(move, true);
         }
         return false;
-    }
-
-    public enum CastleSide {
-        KINGSIDE,
-        QUEENSIDE
-    }
-
-    public enum AmbiguityLevel {
-        A1,
-        A2
     }
 
     public @Nullable AmbiguityLevel isTileAmbiguous(PieceWrapper[][] board, Tile tile, PieceEnum pieceType, boolean white) {
@@ -536,70 +596,6 @@ public class GameManager {
         tilePanel.add(pieceLabel);
     }
 
-    public static class Tile {
-        private final int row;
-        private final int column;
-
-        public int column() {
-            return column;
-        }
-
-        public int row() {
-            return row;
-        }
-
-        public int getComponent() {
-            return (row * 8) + column;
-        }
-
-        public Tile(int row, int column) {
-            this.row = row;
-            this.column = column;
-        }
-
-        public Tile(boolean white, int x, int y, int pieceSize) {
-            this.row = white ? 7 - (y / pieceSize) : (y / pieceSize);
-            this.column = white ? 7 - (x / pieceSize) : (x / pieceSize);
-        }
-
-        public static Tile fromPoint(boolean white, Point point, int pieceSize) {
-            return new Tile(white, point.x, point.y, pieceSize);
-        }
-
-        @Override
-        public String toString() {
-            return getColumnLetter() + getRowNumber();
-        }
-
-        public String getColumnLetter() {
-            return String.valueOf(((char) ((7 - column) + 'a')));
-        }
-
-        public String getRowNumber() {
-            return String.valueOf(row + 1);
-        }
-
-        public static Tile parseTile(String tileString) {
-            if (tileString.equals("-")) return null;
-            int col = 'a' - (tileString.charAt(0) - 7);
-            int row = Integer.parseInt(tileString.substring(1)) - 1;
-            return new Tile(row, col);
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
-            Tile tile = (Tile) o;
-            return row == tile.row && column == tile.column;
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(row, column);
-        }
-    }
-
     public List<SimpleMove> possibleMoves(PieceWrapper[][] board, boolean white) {
         List<SimpleMove> simpleMoves = new ArrayList<>();
         for (int i = 0; i < 8; i++) {
@@ -678,6 +674,84 @@ public class GameManager {
         }
     }
 
+    public String generateCurrentFEN() {
+        return generateFENString(internalBoard, gamePlay.isWhiteToMove(), new CastleState(gamePlay.isCastleWhiteKing(), gamePlay.isCastleBlackKing(), gamePlay.isCastleWhiteQueen(), gamePlay.isCastleBlackQueen()), enPassant, gamePlay.getFullMoveCounter(), gamePlay.getHalfMoveCounter());
+    }
+
+    public enum CastleSide {
+        KINGSIDE,
+        QUEENSIDE
+    }
+
+    public enum AmbiguityLevel {
+        A1,
+        A2
+    }
+
+    public static class Tile {
+        private final int row;
+        private final int column;
+
+        public Tile(int row, int column) {
+            this.row = row;
+            this.column = column;
+        }
+
+        public Tile(boolean white, int x, int y, int pieceSize) {
+            this.row = white ? 7 - (y / pieceSize) : (y / pieceSize);
+            this.column = white ? 7 - (x / pieceSize) : (x / pieceSize);
+        }
+
+        public static Tile fromPoint(boolean white, Point point, int pieceSize) {
+            return new Tile(white, point.x, point.y, pieceSize);
+        }
+
+        public static Tile parseTile(String tileString) {
+            if (tileString.equals("-")) return null;
+            int col = 'a' - (tileString.charAt(0) - 7);
+            int row = Integer.parseInt(tileString.substring(1)) - 1;
+            return new Tile(row, col);
+        }
+
+        public int column() {
+            return column;
+        }
+
+        public int row() {
+            return row;
+        }
+
+        public int getComponent() {
+            return (row * 8) + column;
+        }
+
+        @Override
+        public String toString() {
+            return getColumnLetter() + getRowNumber();
+        }
+
+        public String getColumnLetter() {
+            return String.valueOf(((char) ((7 - column) + 'a')));
+        }
+
+        public String getRowNumber() {
+            return String.valueOf(row + 1);
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+            Tile tile = (Tile) o;
+            return row == tile.row && column == tile.column;
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(row, column);
+        }
+    }
+
     public static class CastleState {
         private final boolean K, k, Q, q;
 
@@ -688,9 +762,14 @@ public class GameManager {
             this.q = q;
         }
 
+        public static CastleState getState(boolean K, boolean k, boolean Q, boolean q) {
+            return new CastleState(K, k, Q, q);
+        }
+
         public boolean whiteKing() {
             return K;
         }
+
         public boolean blackKing() {
             return k;
         }
@@ -711,56 +790,5 @@ public class GameManager {
         public CastleState getState() {
             return new CastleState(K, k, Q, q);
         }
-
-        public static CastleState getState(boolean K, boolean k, boolean Q, boolean q) {
-            return new CastleState(K, k, Q, q);
-        }
-    }
-
-    public String generateCurrentFEN() {
-        return generateFENString(internalBoard, gamePlay.isWhiteToMove(), new CastleState(gamePlay.isCastleWhiteKing(), gamePlay.isCastleBlackKing(), gamePlay.isCastleWhiteQueen(), gamePlay.isCastleBlackQueen()), enPassant, gamePlay.getFullMoveCounter(), gamePlay.getHalfMoveCounter());
-    }
-
-    public static String generateFENString(PieceWrapper[][] board, boolean whiteToMove, CastleState state, Tile enPassant, int fullMoveCount, int halfMoveCount) {
-        StringBuilder builder = new StringBuilder();
-        for (int i = 7; i >= 0; i--) {
-            int empty = 0;
-            for (int j = 7; j >= 0; j--) {
-                PieceWrapper wrapper = board[i][j];
-                if (wrapper == null) {
-                    empty++;
-                } else {
-                    if (empty != 0) {
-                        builder.append(empty);
-                        empty = 0;
-                    }
-                    builder.append(wrapper.getType().getFENNotation());
-                }
-            }
-            if (empty != 0) {
-                builder.append(empty);
-            }
-            if (i != 0) builder.append("/");
-        }
-
-        builder.append(" ");
-        builder.append(whiteToMove ? "w" : "b");
-        builder.append(" ");
-        String castleState = state.toString();
-        builder.append(castleState);
-        if (castleState.length() == 0) {
-            builder.append("- ");
-        } else {
-            builder.append(" ");
-        }
-        if (enPassant == null) {
-            builder.append("- ");
-        } else {
-            builder.append(enPassant).append(" ");
-        }
-        builder.append(halfMoveCount).append(" ");
-        builder.append(fullMoveCount);
-
-        return builder.toString();
     }
 }

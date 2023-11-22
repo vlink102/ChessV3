@@ -49,14 +49,15 @@ public class StockFish {
                     engineProcess.getInputStream()));
             processWriter = new OutputStreamWriter(
                     engineProcess.getOutputStream());
-            EventQueue.invokeLater(new Runnable() {
-                @Override
-                public void run() {
-                    manager.computerMove(manager.getInternalBoard());
-                }
-            });
+            EventQueue.invokeLater(() -> manager.computerMove(manager.getInternalBoard()));
         } catch (Exception e) {
             e.printStackTrace();
+            if (e.getCause().toString().contains("error=13, Permission denied")) {
+                System.out.println("Please use a Windows OS, this program will not work on MacOS");
+                System.out.println("Stockfish evaluation disabled.");
+                Main.COMPUTER = false;
+                Main.stockFish = null;
+            }
             return false;
         }
         return true;

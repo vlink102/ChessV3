@@ -11,7 +11,7 @@ import javax.swing.*;
 public class Main {
     public static FileUtils fileUtils;
     public static StockFish stockFish = null;
-    public static final boolean COMPUTER = true;
+    public static boolean COMPUTER = true;
 
     public static void main(String[] args) {
         LafManager.install(new DarculaTheme());
@@ -24,8 +24,7 @@ public class Main {
                 if (stockFish.startEngine()) {
                     System.out.println("Engine started");
                 } else {
-                    System.out.println("Something went wrong... Aborting program");
-                    System.exit(0);
+                    System.out.println("Something went wrong...");
                 }
 
                 stockFish.sendCommand("uci");

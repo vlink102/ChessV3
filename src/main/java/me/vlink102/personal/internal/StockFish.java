@@ -55,7 +55,7 @@ public class StockFish {
             if (e.getCause().toString().contains("error=13, Permission denied")) {
                 System.out.println("Please use a Windows OS, this program will not work on MacOS");
                 System.out.println("Stockfish evaluation disabled.");
-                Main.COMPUTER = false;
+                Main.OPPONENT = Main.Opponent.PLAYER;
                 Main.stockFish = null;
             }
             return false;
@@ -141,6 +141,7 @@ public class StockFish {
                 newData = newData.split(" ")[0];
             }
             SimpleMove parsedMove = SimpleMove.parseStockFishMove(manager.getInternalBoard(), newData);
+            String parsedMoveString = parsedMove.deepToString(manager, manager.getInternalBoard());
             manager.movePiece(manager.getInternalBoard(), parsedMove);
             //drawBoard(manager.generateCurrentFEN());
 
@@ -154,6 +155,9 @@ public class StockFish {
                         manager.getBoard().getEvalBoard().setEval(finalEval / 100f);
                     }
                     manager.refreshBoard(ChessBoard.WHITE);
+                    String currentFEN = manager.generateCurrentFEN();
+                    manager.getHistory().add(currentFEN);
+                    manager.getBoard().getEvalBoard().addHistory(parsedMoveString, currentFEN);
                     manager.getBoard().getContentPane().paintComponents(manager.getBoard().getContentPane().getGraphics());
                     manager.endGame();
                 });

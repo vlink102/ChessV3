@@ -9,14 +9,14 @@ import org.jetbrains.annotations.Nullable;
 
 import javax.swing.*;
 import java.awt.*;
-import java.lang.reflect.InvocationTargetException;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
-import java.util.Objects;
+import java.util.*;
+import java.util.concurrent.ThreadLocalRandom;
 
 public class GameManager {
-    private ChessBoard board;
+    private final ChessBoard board;
+    private final Random random;
+    private final List<String> history;
     private GamePlay gamePlay;
     private PieceWrapper[][] internalBoard;
     private Tile enPassant;
@@ -28,7 +28,9 @@ public class GameManager {
         this.gamePlay = gamePlayFromFEN(fen);
         this.enPassant = Tile.parseTile(fen.split(" ")[3]);
         this.enPassantPiece = null;
+        this.history = new ArrayList<>();
         refreshBoard(ChessBoard.WHITE);
+        random = ThreadLocalRandom.current();
     }
 
     public GameManager(ChessBoard board) {
@@ -38,39 +40,9 @@ public class GameManager {
         this.gamePlay = new GamePlay(this);
         this.enPassant = null;
         this.enPassantPiece = null;
+        this.history = new ArrayList<>();
         refreshBoard(ChessBoard.WHITE);
-    }
-
-    public void reset(String fen) {
-        this.gamePlay = null;
-        this.internalBoard = null;
-        this.enPassantPiece = null;
-        this.enPassant = null;
-
-        this.internalBoard = fromFEN(fen);
-        this.gamePlay = gamePlayFromFEN(fen);
-        this.enPassant = Tile.parseTile(fen.split(" ")[3]);
-        this.enPassantPiece = null;
-        refreshBoard(ChessBoard.WHITE);
-        EventQueue.invokeLater(() -> {
-            computerMove(internalBoard);
-            Container panel = board.getContentPane();
-            panel.paintComponents(panel.getGraphics());
-        });
-    }
-
-    public void reset() {
-        this.internalBoard = new PieceWrapper[8][8];
-        setupPieces();
-        this.gamePlay = new GamePlay(this);
-        this.enPassant = null;
-        this.enPassantPiece = null;
-        refreshBoard(ChessBoard.WHITE);
-        EventQueue.invokeLater(() -> {
-            computerMove(internalBoard);
-            Container panel = board.getContentPane();
-            panel.paintComponents(panel.getGraphics());
-        });
+        random = ThreadLocalRandom.current();
     }
 
     public static String generateFENString(PieceWrapper[][] board, boolean whiteToMove, CastleState state, Tile enPassant, int fullMoveCount, int halfMoveCount) {
@@ -114,6 +86,46 @@ public class GameManager {
         builder.append(fullMoveCount);
 
         return builder.toString();
+    }
+
+    public List<String> getHistory() {
+        return history;
+    }
+
+    public void reset(String fen) {
+        this.gamePlay = null;
+        this.internalBoard = null;
+        this.enPassantPiece = null;
+        this.enPassant = null;
+        this.history.clear();
+
+        this.internalBoard = fromFEN(fen);
+        this.gamePlay = gamePlayFromFEN(fen);
+        this.enPassant = Tile.parseTile(fen.split(" ")[3]);
+        this.enPassantPiece = null;
+        this.board.getEvalBoard().clearHistory();
+        refreshBoard(ChessBoard.WHITE);
+        EventQueue.invokeLater(() -> {
+            computerMove(internalBoard);
+            Container panel = board.getContentPane();
+            panel.paintComponents(panel.getGraphics());
+        });
+    }
+
+    public void reset() {
+        this.internalBoard = new PieceWrapper[8][8];
+        setupPieces();
+        this.gamePlay = new GamePlay(this);
+        this.enPassant = null;
+        this.enPassantPiece = null;
+        this.history.clear();
+        this.board.getEvalBoard().clearHistory();
+        refreshBoard(ChessBoard.WHITE);
+        EventQueue.invokeLater(() -> {
+            computerMove(internalBoard);
+            Container panel = board.getContentPane();
+            panel.paintComponents(panel.getGraphics());
+        });
     }
 
     public ChessBoard getBoard() {
@@ -235,14 +247,29 @@ public class GameManager {
     }
 
     public void movePiece(Tile from, Tile to, PieceWrapper[][] board, PieceWrapper... promotionPiece) {
-        movePiece(board, new SimpleMove(from, to, board, promotionPiece));
+        SimpleMove move = new SimpleMove(from, to, board, promotionPiece);
+        String moveString = move.deepToString(this, board);
+        movePiece(board, move);
         refreshBoard(ChessBoard.WHITE);
+        String currentFEN = generateCurrentFEN();
+        if (history.size() == 0 || !history.get(history.size() - 1).equalsIgnoreCase(currentFEN)) {
+            history.add(currentFEN);
+            this.board.getEvalBoard().addHistory(moveString, currentFEN);
+        }
         computerMove(board);
     }
 
     public void computerMove(PieceWrapper[][] board) {
-        if (Main.COMPUTER && (gamePlay.isWhiteToMove() != ChessBoard.WHITE)) {
+        if (Main.OPPONENT == Main.Opponent.COMPUTER && (gamePlay.isWhiteToMove() != ChessBoard.WHITE)) {
             Main.stockFish.getBestMove(generateFENString(board, gamePlay.isWhiteToMove(), new CastleState(gamePlay.isCastleWhiteKing(), gamePlay.isCastleBlackKing(), gamePlay.isCastleWhiteQueen(), gamePlay.isCastleBlackQueen()), enPassant, gamePlay.getFullMoveCounter(), gamePlay.getHalfMoveCounter()), (int) (ChessBoard.COMPUTER_WAIT_TIME * 1000));
+        } else if (Main.OPPONENT == Main.Opponent.RANDOM && (gamePlay.isWhiteToMove() != ChessBoard.WHITE)) {
+            SimpleMove move = getRandomMove(board, gamePlay.isWhiteToMove());
+            String moveString = move.deepToString(this, board);
+            movePiece(board, move);
+            refreshBoard(ChessBoard.WHITE);
+            String currentFEN = generateCurrentFEN();
+            history.add(currentFEN);
+            this.board.getEvalBoard().addHistory(moveString, currentFEN);
         }
     }
 
@@ -265,6 +292,11 @@ public class GameManager {
     public boolean canMove(SimpleMove move, PieceWrapper[][] board) {
         PieceWrapper target = board[move.getTo().row][move.getTo().column];
         PieceWrapper piece = move.getPiece();
+        if (ChessBoard.IGNORE_RULES) {
+            if (!(target instanceof King)) {
+                return true;
+            }
+        }
         if (target == null) {
             if (!canMoveToEnPassant(move)) {
                 CastleSide castleSide = canCastle(board, move);
@@ -320,6 +352,9 @@ public class GameManager {
     }
 
     public boolean canCastleThroughCheckedTiles(PieceWrapper[][] board, SimpleMove move) {
+        if (ChessBoard.IGNORE_RULES) {
+            return true;
+        }
         Tile kingTile = getKing(board, move.getPiece().isWhite());
         PieceWrapper king = board[kingTile.row][kingTile.column];
         int startingCol = move.getFrom().column;
@@ -347,7 +382,7 @@ public class GameManager {
     }
 
     public void cleanUpCastleMove(PieceWrapper[][] board, SimpleMove move, boolean tempo) {
-        if (move.isCapture(board)) return;
+        if (move.isCapture(board) && !ChessBoard.IGNORE_RULES) return;
         if (move.getPiece() instanceof King king) {
             int startingCol = move.getFrom().column;
             int toCol = move.getTo().column;
@@ -638,6 +673,12 @@ public class GameManager {
             }
         }
         return possibleMoves;
+    }
+
+
+    public @Nullable SimpleMove getRandomMove(PieceWrapper[][] board, boolean white) {
+        List<SimpleMove> possibleMoves = possibleMoves(board, white);
+        return possibleMoves.get(random.nextInt(possibleMoves.size()));
     }
 
     public boolean isCheckmated(PieceWrapper[][] board, boolean white) {

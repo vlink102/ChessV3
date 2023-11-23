@@ -7,7 +7,8 @@ import me.vlink102.personal.game.SimpleMove;
 import me.vlink102.personal.game.pieces.*;
 
 import javax.swing.*;
-import javax.tools.Tool;
+import javax.swing.border.EmptyBorder;
+import javax.swing.border.LineBorder;
 import java.awt.*;
 import java.awt.datatransfer.Clipboard;
 import java.awt.datatransfer.DataFlavor;
@@ -30,6 +31,8 @@ public class ChessBoard extends JFrame implements MouseListener, MouseMotionList
     public static boolean WHITE = true;
     public static final float COMPUTER_WAIT_TIME = 3; // seconds
 
+    public static boolean IGNORE_RULES = false;
+
     public JPanel getChessBoard() {
         return chessBoard;
     }
@@ -47,6 +50,7 @@ public class ChessBoard extends JFrame implements MouseListener, MouseMotionList
     public static class EvalBoard extends JFrame {
 
         private final JLabel label;
+        private final JPanel historyPanel;
 
         public void setEval(Number eval) {
             if (eval instanceof Integer) {
@@ -56,6 +60,33 @@ public class ChessBoard extends JFrame implements MouseListener, MouseMotionList
             }
         }
 
+        public void addHistory(String move, String FEN) {
+            JPanel panel = new JPanel();
+            panel.setLayout(new BoxLayout(panel, BoxLayout.X_AXIS));
+
+            JLabel moveName = new JLabel("XXXXXXX");
+            final Dimension size = moveName.getPreferredSize();
+            moveName.setMinimumSize(size);
+            moveName.setPreferredSize(size);
+            moveName.setText(move);
+            panel.add(moveName);
+
+            JButton fenButton = new JButton(new AbstractAction(FEN) {
+                @Override
+                public void actionPerformed(ActionEvent e) {
+                    Toolkit.getDefaultToolkit().getSystemClipboard().setContents(new StringSelection(FEN), null);
+                }
+            });
+            panel.add(fenButton);
+            panel.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+            historyPanel.add(panel);
+            paintComponents(getGraphics());
+        }
+
+        public void clearHistory() {
+            historyPanel.removeAll();
+        }
 
         public EvalBoard(int size) {
             Dimension dimension = new Dimension(size / 2, size);
@@ -68,11 +99,18 @@ public class ChessBoard extends JFrame implements MouseListener, MouseMotionList
             }
 
             JPanel panel = new JPanel();
-            panel.setLayout(new BorderLayout());
+            panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
             label = new JLabel();
-            panel.add(label, BorderLayout.CENTER);
-            label.setText("Loading Evaluation (Relative Eval)... (NNUE)");
-            label.setFont(new Font("serif", Font.PLAIN, 16));
+            panel.add(label);
+            label.setText("Loading StockFish 16 Evaluation");
+            label.setFont(new Font(Font.DIALOG, Font.PLAIN, 16));
+            this.historyPanel = new JPanel();
+            historyPanel.setLayout(new BoxLayout(historyPanel, BoxLayout.Y_AXIS));
+            historyPanel.setBorder(new EmptyBorder(0, 3, 3, 3));
+            JScrollPane pane = new JScrollPane(historyPanel, ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED, ScrollPaneConstants.HORIZONTAL_SCROLLBAR_AS_NEEDED);
+            pane.setPreferredSize(new Dimension(size / 2, size / 2));
+            panel.add(pane);
+
             this.getContentPane().add(panel);
 
             this.setDefaultCloseOperation(DISPOSE_ON_CLOSE);
@@ -145,9 +183,37 @@ public class ChessBoard extends JFrame implements MouseListener, MouseMotionList
         JCheckBoxMenuItem playAsWhite = new JCheckBoxMenuItem("Play as white?");
         playAsWhite.addItemListener(e -> ChessBoard.WHITE = playAsWhite.isSelected());
         playAsWhite.setSelected(ChessBoard.WHITE);
-        JCheckBoxMenuItem playAgainstComputer = new JCheckBoxMenuItem("Enable Computer");
-        playAgainstComputer.addItemListener(e -> Main.COMPUTER = playAgainstComputer.isSelected());
-        playAgainstComputer.setSelected(Main.COMPUTER);
+
+        JMenu opponent = new JMenu("Opponent Type");
+        ButtonGroup opponentGroup = new ButtonGroup();
+        JRadioButtonMenuItem computerOpponent = new JRadioButtonMenuItem("Computer");
+        computerOpponent.addItemListener(e -> {
+            if (computerOpponent.isSelected()) {
+                Main.OPPONENT = Main.Opponent.COMPUTER;
+            }
+        });
+        computerOpponent.setSelected(Main.OPPONENT == Main.Opponent.COMPUTER);
+        opponentGroup.add(computerOpponent);
+        JRadioButtonMenuItem playerOpponent = new JRadioButtonMenuItem("Player");
+        playerOpponent.addItemListener(e -> {
+            if (playerOpponent.isSelected()) {
+                Main.OPPONENT = Main.Opponent.PLAYER;
+            }
+        });
+        opponentGroup.add(playerOpponent);
+        JRadioButtonMenuItem randomMoveOpponent = new JRadioButtonMenuItem("Random Moves");
+        randomMoveOpponent.addItemListener(e -> {
+            if (randomMoveOpponent.isSelected()) {
+                Main.OPPONENT = Main.Opponent.RANDOM;
+            }
+        });
+
+        opponentGroup.add(randomMoveOpponent);
+
+        opponent.add(playerOpponent);
+        opponent.add(computerOpponent);
+        opponent.add(randomMoveOpponent);
+
         JMenu commands = new JMenu("Power Actions");
         JMenuItem resetGame = new JMenuItem(new AbstractAction("Reset Game") {
             @Override
@@ -161,12 +227,16 @@ public class ChessBoard extends JFrame implements MouseListener, MouseMotionList
                 System.exit(0);
             }
         });
+        JCheckBoxMenuItem ignoreRules = new JCheckBoxMenuItem("Illegal moves");
+        ignoreRules.addItemListener(e -> IGNORE_RULES = ignoreRules.isSelected());
+        ignoreRules.setSelected(IGNORE_RULES);
 
 
         menu.add(setFEN);
         menu.add(copyFEN);
         menu.add(playAsWhite);
-        menu.add(playAgainstComputer);
+        menu.add(opponent);
+        commands.add(ignoreRules);
         commands.add(resetGame);
         commands.add(quitProgram);
         jMenuBar.add(menu);

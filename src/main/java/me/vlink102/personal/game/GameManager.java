@@ -485,6 +485,7 @@ public class GameManager {
             for (int j = 0; j < 8; j++) {
                 PieceWrapper wrapper = board[i][j];
                 if (wrapper == null) continue;
+                if (ChessBoard.IGNORE_RULES && !(wrapper instanceof King)) return false;
                 if (wrapper.isWhite() != whiteToCheck) continue;
                 Tile from = new Tile(i, j);
                 if (from.equals(tile)) continue;

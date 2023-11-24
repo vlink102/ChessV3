@@ -106,7 +106,7 @@ public class GamePlay {
             }
         }
         whiteToMove = !whiteToMove;
-        manager.refreshBoard(ChessBoard.WHITE);
+        manager.refreshBoard(ChessBoard.WHITE_VIEW);
     }
 
     private void disableRook(Rook rook) {

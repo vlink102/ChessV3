@@ -29,7 +29,7 @@ public class GameManager {
         this.enPassant = Tile.parseTile(fen.split(" ")[3]);
         this.enPassantPiece = null;
         this.history = new ArrayList<>();
-        refreshBoard(ChessBoard.WHITE);
+        refreshBoard(ChessBoard.WHITE_VIEW);
         random = ThreadLocalRandom.current();
     }
 
@@ -41,7 +41,7 @@ public class GameManager {
         this.enPassant = null;
         this.enPassantPiece = null;
         this.history = new ArrayList<>();
-        refreshBoard(ChessBoard.WHITE);
+        refreshBoard(ChessBoard.WHITE_VIEW);
         random = ThreadLocalRandom.current();
     }
 
@@ -104,7 +104,7 @@ public class GameManager {
         this.enPassant = Tile.parseTile(fen.split(" ")[3]);
         this.enPassantPiece = null;
         this.board.getEvalBoard().clearHistory();
-        refreshBoard(ChessBoard.WHITE);
+        refreshBoard(ChessBoard.WHITE_VIEW);
         EventQueue.invokeLater(() -> {
             computerMove(internalBoard);
             Container panel = board.getContentPane();
@@ -120,7 +120,7 @@ public class GameManager {
         this.enPassantPiece = null;
         this.history.clear();
         this.board.getEvalBoard().clearHistory();
-        refreshBoard(ChessBoard.WHITE);
+        refreshBoard(ChessBoard.WHITE_VIEW);
         EventQueue.invokeLater(() -> {
             computerMove(internalBoard);
             Container panel = board.getContentPane();
@@ -246,43 +246,97 @@ public class GameManager {
         return play;
     }
 
-    public void movePiece(Tile from, Tile to, PieceWrapper[][] board, PieceWrapper... promotionPiece) {
+    public void playerMovePiece(Tile from, Tile to, PieceWrapper[][] board, PieceWrapper... promotionPiece) {
         SimpleMove move = new SimpleMove(from, to, board, promotionPiece);
         String moveString = move.deepToString(this, board);
         movePiece(board, move);
-        refreshBoard(ChessBoard.WHITE);
+        refreshBoard(ChessBoard.WHITE_VIEW);
         String currentFEN = generateCurrentFEN();
         if (history.size() == 0 || !history.get(history.size() - 1).equalsIgnoreCase(currentFEN)) {
             history.add(currentFEN);
             this.board.getEvalBoard().addHistory(moveString, currentFEN);
         }
-        computerMove(board);
+        if (endGame()) return;
+        recursiveMoves(board);
     }
 
     public void computerMove(PieceWrapper[][] board) {
-        if (Main.OPPONENT == Main.Opponent.COMPUTER && (gamePlay.isWhiteToMove() != ChessBoard.WHITE)) {
+        if (getPiecesOnBoard() <= 7) {
+            // run through 14 terabyte syzygy table base
+
+        } else {
             Main.stockFish.getBestMove(generateFENString(board, gamePlay.isWhiteToMove(), new CastleState(gamePlay.isCastleWhiteKing(), gamePlay.isCastleBlackKing(), gamePlay.isCastleWhiteQueen(), gamePlay.isCastleBlackQueen()), enPassant, gamePlay.getFullMoveCounter(), gamePlay.getHalfMoveCounter()), (int) (ChessBoard.COMPUTER_WAIT_TIME * 1000));
-        } else if (Main.OPPONENT == Main.Opponent.RANDOM && (gamePlay.isWhiteToMove() != ChessBoard.WHITE)) {
-            SimpleMove move = getRandomMove(board, gamePlay.isWhiteToMove());
-            String moveString = move.deepToString(this, board);
-            movePiece(board, move);
-            refreshBoard(ChessBoard.WHITE);
-            String currentFEN = generateCurrentFEN();
-            history.add(currentFEN);
-            this.board.getEvalBoard().addHistory(moveString, currentFEN);
         }
     }
 
-    public void endGame() {
+    public int getPiecesOnBoard() {
+        int c = 0;
+        for (int i = 0; i < 8; i++) {
+            for (int j = 0; j < 8; j++) {
+                if (internalBoard[i][j] != null) {
+                    c++;
+                }
+            }
+        }
+        return c;
+    }
+
+    public void recursiveMoves(PieceWrapper[][] board) {
+        if (gamePlay.isWhiteToMove()) {
+            if (ChessBoard.WHITE_VIEW) {
+                switch (Main.SELF) {
+                    case COMPUTER -> computerMove(board);
+                    case RANDOM -> randomMove(board);
+                }
+            } else {
+                switch (Main.OPPONENT) {
+                    case COMPUTER -> computerMove(board);
+                    case RANDOM -> randomMove(board);
+                }
+            }
+        } else {
+            if (ChessBoard.WHITE_VIEW) {
+                switch (Main.OPPONENT) {
+                    case COMPUTER -> computerMove(board);
+                    case RANDOM -> randomMove(board);
+                }
+            } else {
+                switch (Main.SELF) {
+                    case COMPUTER -> computerMove(board);
+                    case RANDOM -> randomMove(board);
+                }
+            }
+        }
+    }
+
+
+    public void randomMove(PieceWrapper[][] board) {
+        SimpleMove move = getRandomMove(board, gamePlay.isWhiteToMove());
+        assert move != null;
+        String moveString = move.deepToString(this, board);
+        movePiece(board, move);
+        refreshBoard(ChessBoard.WHITE_VIEW);
+        String currentFEN = generateCurrentFEN();
+        history.add(currentFEN);
+        this.board.getEvalBoard().addHistory(moveString, currentFEN);
+        if (endGame()) return;
+        recursiveMoves(board);
+    }
+
+    public boolean endGame() {
         if (isCheckmated(internalBoard, gamePlay.isWhiteToMove())) {
             JOptionPane.showMessageDialog(null, (gamePlay.isWhiteToMove() ? "Black" : "White") + " wins by checkmate", "Game over", JOptionPane.INFORMATION_MESSAGE);
+            return true;
         }
         if (isStalemate(internalBoard)) {
             JOptionPane.showMessageDialog(null, "Game drawn by stalemate", "Game over", JOptionPane.INFORMATION_MESSAGE);
+            return true;
         }
         if (gamePlay.getFiftyMoveRule() >= 50) {
             JOptionPane.showMessageDialog(null, "Game draw by fifty-move rule", "Game over", JOptionPane.INFORMATION_MESSAGE);
+            return true;
         }
+        return false;
     }
 
     public boolean canLegallyMove(SimpleMove move) {

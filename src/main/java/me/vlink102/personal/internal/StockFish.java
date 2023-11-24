@@ -5,13 +5,9 @@ import me.vlink102.personal.game.GameManager;
 import me.vlink102.personal.game.SimpleMove;
 import org.apache.commons.io.IOUtils;
 
-import javax.naming.Context;
 import java.awt.*;
 import java.io.*;
 import java.lang.reflect.InvocationTargetException;
-import java.net.URI;
-import java.net.URL;
-import java.nio.file.Paths;
 import java.util.concurrent.CompletableFuture;
 
 public class StockFish {
@@ -49,13 +45,15 @@ public class StockFish {
                     engineProcess.getInputStream()));
             processWriter = new OutputStreamWriter(
                     engineProcess.getOutputStream());
-            EventQueue.invokeLater(() -> manager.computerMove(manager.getInternalBoard()));
+            EventQueue.invokeLater(() -> {
+                manager.recursiveMoves(manager.getInternalBoard());
+            });
         } catch (Exception e) {
             e.printStackTrace();
             if (e.getCause().toString().contains("error=13, Permission denied")) {
                 System.out.println("Please use a Windows OS, this program will not work on MacOS");
                 System.out.println("Stockfish evaluation disabled.");
-                Main.OPPONENT = Main.Opponent.PLAYER;
+                Main.OPPONENT = Main.MoveType.PLAYER;
                 Main.stockFish = null;
             }
             return false;
@@ -154,12 +152,13 @@ public class StockFish {
                     } else {
                         manager.getBoard().getEvalBoard().setEval(finalEval / 100f);
                     }
-                    manager.refreshBoard(ChessBoard.WHITE);
+                    manager.refreshBoard(ChessBoard.WHITE_VIEW);
                     String currentFEN = manager.generateCurrentFEN();
                     manager.getHistory().add(currentFEN);
                     manager.getBoard().getEvalBoard().addHistory(parsedMoveString, currentFEN);
                     manager.getBoard().getContentPane().paintComponents(manager.getBoard().getContentPane().getGraphics());
                     manager.endGame();
+                    manager.recursiveMoves(manager.getInternalBoard());
                 });
             } catch (InterruptedException | InvocationTargetException e) {
                 throw new RuntimeException(e);

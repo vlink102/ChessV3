@@ -8,7 +8,6 @@ import me.vlink102.personal.game.pieces.*;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
-import javax.swing.border.LineBorder;
 import java.awt.*;
 import java.awt.datatransfer.Clipboard;
 import java.awt.datatransfer.DataFlavor;
@@ -28,7 +27,7 @@ public class ChessBoard extends JFrame implements MouseListener, MouseMotionList
     Point released;
 
     private final int pieceSize;
-    public static boolean WHITE = true;
+    public static boolean WHITE_VIEW = true;
     public static final float COMPUTER_WAIT_TIME = 3; // seconds
 
     public static boolean IGNORE_RULES = false;
@@ -180,39 +179,73 @@ public class ChessBoard extends JFrame implements MouseListener, MouseMotionList
                 Toolkit.getDefaultToolkit().getSystemClipboard().setContents(new StringSelection(manager.generateCurrentFEN()), null);
             }
         });
-        JCheckBoxMenuItem playAsWhite = new JCheckBoxMenuItem("Play as white?");
-        playAsWhite.addItemListener(e -> ChessBoard.WHITE = playAsWhite.isSelected());
-        playAsWhite.setSelected(ChessBoard.WHITE);
+        JCheckBoxMenuItem viewFromWhite = new JCheckBoxMenuItem("View from white?");
+        viewFromWhite.addItemListener(e -> ChessBoard.WHITE_VIEW = viewFromWhite.isSelected());
+        viewFromWhite.setSelected(ChessBoard.WHITE_VIEW);
 
         JMenu opponent = new JMenu("Opponent Type");
         ButtonGroup opponentGroup = new ButtonGroup();
         JRadioButtonMenuItem computerOpponent = new JRadioButtonMenuItem("Computer");
         computerOpponent.addItemListener(e -> {
             if (computerOpponent.isSelected()) {
-                Main.OPPONENT = Main.Opponent.COMPUTER;
+                Main.OPPONENT = Main.MoveType.COMPUTER;
             }
         });
-        computerOpponent.setSelected(Main.OPPONENT == Main.Opponent.COMPUTER);
         opponentGroup.add(computerOpponent);
         JRadioButtonMenuItem playerOpponent = new JRadioButtonMenuItem("Player");
         playerOpponent.addItemListener(e -> {
             if (playerOpponent.isSelected()) {
-                Main.OPPONENT = Main.Opponent.PLAYER;
+                Main.OPPONENT = Main.MoveType.PLAYER;
             }
         });
         opponentGroup.add(playerOpponent);
         JRadioButtonMenuItem randomMoveOpponent = new JRadioButtonMenuItem("Random Moves");
         randomMoveOpponent.addItemListener(e -> {
             if (randomMoveOpponent.isSelected()) {
-                Main.OPPONENT = Main.Opponent.RANDOM;
+                Main.OPPONENT = Main.MoveType.RANDOM;
             }
         });
 
         opponentGroup.add(randomMoveOpponent);
 
+        JMenu opponent2 = new JMenu("Self Type");
+        ButtonGroup opponentGroup2 = new ButtonGroup();
+        JRadioButtonMenuItem computerOpponent2 = new JRadioButtonMenuItem("Computer");
+        computerOpponent2.addItemListener(e -> {
+            if (computerOpponent2.isSelected()) {
+                Main.SELF = Main.MoveType.COMPUTER;
+            }
+        });
+        opponentGroup2.add(computerOpponent2);
+        JRadioButtonMenuItem playerOpponent2 = new JRadioButtonMenuItem("Player");
+        playerOpponent2.addItemListener(e -> {
+            if (playerOpponent2.isSelected()) {
+                Main.SELF = Main.MoveType.PLAYER;
+            }
+        });
+        opponentGroup2.add(playerOpponent2);
+        JRadioButtonMenuItem randomMoveOpponent2 = new JRadioButtonMenuItem("Random Moves");
+        randomMoveOpponent2.addItemListener(e -> {
+            if (randomMoveOpponent2.isSelected()) {
+                Main.SELF = Main.MoveType.RANDOM;
+            }
+        });
+
+        computerOpponent.setSelected(Main.OPPONENT == Main.MoveType.COMPUTER);
+        computerOpponent2.setSelected(Main.SELF == Main.MoveType.COMPUTER);
+        playerOpponent.setSelected(Main.OPPONENT == Main.MoveType.PLAYER);
+        playerOpponent2.setSelected(Main.SELF == Main.MoveType.PLAYER);
+        randomMoveOpponent.setSelected(Main.OPPONENT == Main.MoveType.RANDOM);
+        randomMoveOpponent2.setSelected(Main.SELF == Main.MoveType.RANDOM);
+
+        opponentGroup2.add(randomMoveOpponent2);
+
         opponent.add(playerOpponent);
         opponent.add(computerOpponent);
         opponent.add(randomMoveOpponent);
+        opponent2.add(playerOpponent2);
+        opponent2.add(computerOpponent2);
+        opponent2.add(randomMoveOpponent2);
 
         JMenu commands = new JMenu("Power Actions");
         JMenuItem resetGame = new JMenuItem(new AbstractAction("Reset Game") {
@@ -234,8 +267,9 @@ public class ChessBoard extends JFrame implements MouseListener, MouseMotionList
 
         menu.add(setFEN);
         menu.add(copyFEN);
-        menu.add(playAsWhite);
+        menu.add(viewFromWhite);
         menu.add(opponent);
+        menu.add(opponent2);
         commands.add(ignoreRules);
         commands.add(resetGame);
         commands.add(quitProgram);
@@ -265,12 +299,12 @@ public class ChessBoard extends JFrame implements MouseListener, MouseMotionList
 
         clicked = e.getPoint();
 
-        GameManager.Tile clickedTile = GameManager.Tile.fromPoint(WHITE, clicked, pieceSize);
+        GameManager.Tile clickedTile = GameManager.Tile.fromPoint(WHITE_VIEW, clicked, pieceSize);
         if (manager.getInternalBoard()[clickedTile.row()][clickedTile.column()] == null) return;
 
         StringJoiner joiner = new StringJoiner(", ");
         int i = 0;
-        for (SimpleMove possibleMove : Objects.requireNonNull(manager.possibleMoves(manager.getInternalBoard(), GameManager.Tile.fromPoint(WHITE, clicked, pieceSize)))) {
+        for (SimpleMove possibleMove : Objects.requireNonNull(manager.possibleMoves(manager.getInternalBoard(), GameManager.Tile.fromPoint(WHITE_VIEW, clicked, pieceSize)))) {
             joiner.add(possibleMove.deepToString(manager, manager.getInternalBoard()));
             i++;
         }
@@ -312,14 +346,14 @@ public class ChessBoard extends JFrame implements MouseListener, MouseMotionList
         parent.validate();
 
         if (released == null || clicked == null) return;
-        GameManager.Tile from = GameManager.Tile.fromPoint(WHITE, clicked, pieceSize);
-        GameManager.Tile to = GameManager.Tile.fromPoint(WHITE, released, pieceSize);
+        GameManager.Tile from = GameManager.Tile.fromPoint(WHITE_VIEW, clicked, pieceSize);
+        GameManager.Tile to = GameManager.Tile.fromPoint(WHITE_VIEW, released, pieceSize);
         if (from.equals(to)) return;
         final PieceWrapper piece = manager.getInternalBoard()[from.row()][from.column()];
         if ((to.row() == 7 || to.row() == 0) && piece instanceof Pawn) {
-            manager.movePiece(from, to, manager.getInternalBoard(), getFromInteger(0 /* TODO Piece Promotion Panel */, piece.isWhite(), to));
+            manager.playerMovePiece(from, to, manager.getInternalBoard(), getFromInteger(0 /* TODO Piece Promotion Panel */, piece.isWhite(), to));
         } else {
-            manager.movePiece(from, to, manager.getInternalBoard());
+            manager.playerMovePiece(from, to, manager.getInternalBoard());
             manager.endGame();
         }
 

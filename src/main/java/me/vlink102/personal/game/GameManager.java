@@ -9,9 +9,14 @@ import org.jetbrains.annotations.Nullable;
 
 import javax.swing.*;
 import java.awt.*;
+import java.lang.reflect.AnnotatedType;
+import java.lang.reflect.InvocationTargetException;
 import java.util.List;
 import java.util.*;
+import java.util.Timer;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Collectors;
 
 public class GameManager {
     private final ChessBoard board;
@@ -256,14 +261,19 @@ public class GameManager {
             history.add(currentFEN);
             this.board.getEvalBoard().addHistory(moveString, currentFEN);
         }
-        if (endGame()) return;
-        recursiveMoves(board);
+        if (!endGame()) {
+            recursiveMoves(board);
+        }
     }
 
     public void computerMove(PieceWrapper[][] board) {
         if (getPiecesOnBoard() <= 7) {
             // run through 14 terabyte syzygy table base
-
+            try {
+                Main.syzygyTableBases.computerMove(board, generateCurrentFEN());
+            } catch (InterruptedException | InvocationTargetException e) {
+                throw new RuntimeException(e);
+            }
         } else {
             Main.stockFish.getBestMove(generateFENString(board, gamePlay.isWhiteToMove(), new CastleState(gamePlay.isCastleWhiteKing(), gamePlay.isCastleBlackKing(), gamePlay.isCastleWhiteQueen(), gamePlay.isCastleBlackQueen()), enPassant, gamePlay.getFullMoveCounter(), gamePlay.getHalfMoveCounter()), (int) (ChessBoard.COMPUTER_WAIT_TIME * 1000));
         }
@@ -311,16 +321,31 @@ public class GameManager {
 
 
     public void randomMove(PieceWrapper[][] board) {
-        SimpleMove move = getRandomMove(board, gamePlay.isWhiteToMove());
-        assert move != null;
-        String moveString = move.deepToString(this, board);
-        movePiece(board, move);
-        refreshBoard(ChessBoard.WHITE_VIEW);
-        String currentFEN = generateCurrentFEN();
-        history.add(currentFEN);
-        this.board.getEvalBoard().addHistory(moveString, currentFEN);
-        if (endGame()) return;
-        recursiveMoves(board);
+        Timer timer = new Timer();
+        timer.schedule(new TimerTask() {
+            @Override
+            public void run() {
+                SimpleMove move = getRandomMove(board, gamePlay.isWhiteToMove());
+                assert move != null;
+                String moveString = move.deepToString(GameManager.this, board);
+                movePiece(board, move);
+                try {
+                    EventQueue.invokeAndWait(() -> {
+                        refreshBoard(ChessBoard.WHITE_VIEW);
+                        String currentFEN = generateCurrentFEN();
+                        history.add(currentFEN);
+                        GameManager.this.board.getEvalBoard().addHistory(moveString, currentFEN);
+                        GameManager.this.board.getContentPane().paintComponents(GameManager.this.board.getContentPane().getGraphics());
+                        if (!endGame()) {
+                            recursiveMoves(board);
+                        }
+                    });
+                } catch (InterruptedException | InvocationTargetException e) {
+                    throw new RuntimeException(e);
+                }
+
+            }
+        }, 500);
     }
 
     public boolean endGame() {
@@ -335,6 +360,28 @@ public class GameManager {
         if (gamePlay.getFiftyMoveRule() >= 50) {
             JOptionPane.showMessageDialog(null, "Game draw by fifty-move rule", "Game over", JOptionPane.INFORMATION_MESSAGE);
             return true;
+        }
+        if (isThreeFoldRepetition()) {
+            JOptionPane.showMessageDialog(null, "Game draw by three-fold repetition", "Game over", JOptionPane.INFORMATION_MESSAGE);
+            return true;
+        }
+        return false;
+    }
+
+    public List<String> truncatedHistory() {
+        List<String> truncated = new ArrayList<>();
+        for (String s : history) {
+            truncated.add(s.split(" ")[0]);
+        }
+        return truncated;
+    }
+
+    public boolean isThreeFoldRepetition() {
+        List<String> truncatedHistory = truncatedHistory();
+        for (String s : truncatedHistory) {
+            if (Collections.frequency(truncatedHistory, s) >= 3) {
+                return true;
+            }
         }
         return false;
     }
@@ -741,7 +788,7 @@ public class GameManager {
     }
 
     public boolean isStalemate(PieceWrapper[][] board) {
-        return (possibleMoves(board, true).isEmpty() && !isKingInCheck(board, true)) || (possibleMoves(board, false).isEmpty() && !isKingInCheck(board, false));
+        return (possibleMoves(board, true).isEmpty() && !isKingInCheck(board, true) && gamePlay.isWhiteToMove()) || (possibleMoves(board, false).isEmpty() && !isKingInCheck(board, false) && !gamePlay.isWhiteToMove());
     }
 
     public Tile getEnPassant() {

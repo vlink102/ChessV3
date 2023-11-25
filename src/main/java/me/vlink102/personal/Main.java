@@ -30,7 +30,7 @@ public class Main {
             ChessBoard board = new ChessBoard(600);
             if (OPPONENT.equals(MoveType.COMPUTER)) {
                 try {
-                    syzygyTableBases = new SyzygyTableBases();
+                    syzygyTableBases = new SyzygyTableBases(board.getManager());
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }

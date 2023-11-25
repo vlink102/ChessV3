@@ -157,8 +157,9 @@ public class StockFish {
                     manager.getHistory().add(currentFEN);
                     manager.getBoard().getEvalBoard().addHistory(parsedMoveString, currentFEN);
                     manager.getBoard().getContentPane().paintComponents(manager.getBoard().getContentPane().getGraphics());
-                    manager.endGame();
-                    manager.recursiveMoves(manager.getInternalBoard());
+                    if (!manager.endGame()) {
+                        manager.recursiveMoves(manager.getInternalBoard());
+                    }
                 });
             } catch (InterruptedException | InvocationTargetException e) {
                 throw new RuntimeException(e);

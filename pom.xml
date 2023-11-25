@@ -6,7 +6,7 @@
 
     <groupId>me.vlink102.personal</groupId>
     <artifactId>ChessV3</artifactId>
-    <version>4x14-BUILD</version>
+    <version>4x30-BUILD</version>
     <build>
         <plugins>
             <plugin>
@@ -69,6 +69,11 @@
             <groupId>org.json</groupId>
             <artifactId>json</artifactId>
             <version>20230227</version>
+        </dependency>
+        <dependency>
+            <groupId>io.github.tors42</groupId>
+            <artifactId>chariot</artifactId>
+            <version>0.0.77</version>
         </dependency>
     </dependencies>
 

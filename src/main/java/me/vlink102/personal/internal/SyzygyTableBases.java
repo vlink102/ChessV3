@@ -8,16 +8,8 @@ import me.vlink102.personal.game.SimpleMove;
 import org.json.JSONObject;
 
 import java.awt.*;
-import java.io.BufferedInputStream;
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.lang.reflect.InvocationTargetException;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.sql.Time;
-import java.util.Timer;
-import java.util.TimerTask;
 
 /**
  * 8/5P2/8/8/p5r1/1p6/3R4/k1K5 w - - 0 1

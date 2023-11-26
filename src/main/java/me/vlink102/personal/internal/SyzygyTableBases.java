@@ -5,7 +5,6 @@ import chariot.model.TablebaseResult;
 import me.vlink102.personal.game.GameManager;
 import me.vlink102.personal.game.PieceWrapper;
 import me.vlink102.personal.game.SimpleMove;
-import org.json.JSONObject;
 
 import java.awt.*;
 import java.io.IOException;
@@ -59,10 +58,14 @@ public class SyzygyTableBases {
         this.client = Client.auth("lip_DIhiyPV8deCMIaktZX8E");
     }
 
+    public Client getClient() {
+        return client;
+    }
+
     /**
-     * {@link StockFish#getBestMove(String, int)}
+     * {@link StockFish#getBestMove(String)}
      */
-    public void computerMove(PieceWrapper[][] board, String FEN) throws InterruptedException, InvocationTargetException {
+    public void computerMove(String FEN) throws InterruptedException, InvocationTargetException {
 
         /*
         JSONObject result;
@@ -85,30 +88,55 @@ public class SyzygyTableBases {
             }, 3600);
         } else {
             */
-            TablebaseResult result = client.tablebase().standard(FEN).get();
-            SimpleMove move = SimpleMove.parseStockFishMove(board, result.moves().get(0).uci());
-            String parsedMoveString = move.deepToString(manager, manager.getInternalBoard());
-            manager.movePiece(manager.getInternalBoard(), move);
+        TablebaseResult result = client.tablebase().standard(FEN).get();
+        TablebaseResult.Move moveResult = result.moves().get(0);
+        SimpleMove move = SimpleMove.parseStockFishMove(manager.getInternalBoard(), moveResult.uci());
+        String parsedMoveString = move.deepToString(manager, manager.getInternalBoard());
+        manager.movePiece(manager.getInternalBoard(), move);
 
+        //printTableBaseInfo(result);
+        EventQueue.invokeLater(() -> {
+            manager.getBoard().getEvalBoard().updateEval((float) -1, result.dtz(), result.dtm());
 
-            EventQueue.invokeLater(() -> {
-                if (result.moves().get(0).dtm() != null) {
-                    int value = result.moves().get(0).dtm();
-                    manager.getBoard().getEvalBoard().setEval(value);
-                }
-
-                manager.refreshBoard(ChessBoard.WHITE_VIEW);
-                String currentFEN = manager.generateCurrentFEN();
-                manager.getHistory().add(currentFEN);
-                manager.getBoard().getEvalBoard().addHistory(parsedMoveString, currentFEN);
-                manager.getBoard().getContentPane().paintComponents(manager.getBoard().getContentPane().getGraphics());
-                if (!manager.endGame()) {
-                    manager.recursiveMoves(manager.getInternalBoard());
-                }
-            });
+            manager.refreshBoard(ChessBoard.WHITE_VIEW);
+            String currentFEN = manager.generateCurrentFEN();
+            manager.history.add(currentFEN);
+            manager.uciHistory.add(move.toUCI());
+            manager.getBoard().getEvalBoard().addHistory(parsedMoveString, currentFEN);
+            manager.getBoard().getContentPane().paintComponents(manager.getBoard().getContentPane().getGraphics());
+            if (!manager.endGame()) {
+                manager.recursiveMoves(manager.getInternalBoard());
+            }
+        });
         /*}*/
     }
 
+    public void printTableBaseInfo(TablebaseResult result) {
+        TablebaseResult.Move move = result.moves().get(0);
+        System.out.println("==============================");
+        System.out.println(" |  DTZ: " + result.dtz());
+        System.out.println(" |  DTZ_PRECISE: " + result.precise_dtz());
+        System.out.println(" |  DEPTH_TO_MATE: " + result.dtm());
+        System.out.println(" |  CHECKMATE: " + result.checkmate());
+        System.out.println(" |  STALEMATE: " + result.stalemate());
+        System.out.println(" |  INSUFFICIENT_MATERIAL: " + result.insufficient_material());
+        System.out.println(" |  CATEGORY: " + result.category());
+        System.out.println(" |  --------------------");
+        System.out.println(" >   |  UCI: " + move.uci());
+        System.out.println(" >   |  SAN: " + move.san());
+        System.out.println(" >   |  DTZ: " + move.dtz());
+        System.out.println(" >   |  DTZ_PRECISE: " + move.precise_dtz());
+        System.out.println(" >   |  DEPTH_TO_MATE: " + move.dtm());
+        System.out.println(" >   |  ZEROING: " + move.zeroing());
+        System.out.println(" >   |  CHECKMATE: " + move.checkmate());
+        System.out.println(" >   |  STALEMATE: " + move.stalemate());
+        System.out.println(" >   |  INSUFFICIENT_MATERIAL: " + move.insufficient_material());
+        System.out.println(" >   |  CATEGORY: " + move.category());
+        System.out.println(" |  --------------------");
+        System.out.println("==============================");
+    }
+
+    /*
     public void printTableBaseInfo(JSONObject object) {
         System.out.println("--------------------");
         System.out.println("DTZ: " + object.getInt("dtz"));
@@ -132,6 +160,8 @@ public class SyzygyTableBases {
         System.out.println("CATEGORY: " + object.getString("category"));
         System.out.println("--------------------");
     }
+
+     */
     /*
     public JSONObject getData(String FEN) throws IOException {
         String reformattedFEN = FEN.replaceAll(" ", "_");

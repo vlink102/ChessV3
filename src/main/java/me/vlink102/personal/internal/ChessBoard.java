@@ -48,15 +48,50 @@ public class ChessBoard extends JFrame implements MouseListener, MouseMotionList
 
     public static class EvalBoard extends JFrame {
 
-        private final JLabel label;
+        private final JLabel evalLabel;
+        private final JLabel dtz;
+        private final JLabel dtm;
         private final JPanel historyPanel;
 
-        public void setEval(Number eval) {
-            if (eval instanceof Integer) {
-                label.setText("Evaluation: Mate in " + eval);
-            } else if (eval instanceof Float f) {
-                label.setText("Evaluation: " + (f > 0.0f ? "+" : "") + eval);
+        public void updateEval(Float eval, Integer dtz, Integer dtm) {
+            if (eval == null) {
+                setEval();
+            } else if (eval != -1f) {
+                setEval(eval);
             }
+            if (dtz != null) {
+                setDtz(dtz);
+            } else {
+                setDtz();
+            }
+            if (dtm != null) {
+                setDtm(dtm);
+            } else {
+                setDtm();
+            }
+        }
+
+        private void setEval() {
+            evalLabel.setText("(Evaluation Unknown)");
+        }
+
+        private void setEval(float eval) {
+            evalLabel.setText("Evaluation: " + (eval > 0.0f ? "+" : "") + eval);
+        }
+        private void setDtz(int x) {
+            dtz.setText("DTZ: " + x + "  ");
+        }
+
+        private void setDtz() {
+            dtz.setText("(DTZ Unknown)" + "  ");
+        }
+
+        private void setDtm(int x) {
+            dtm.setText("Mate in: " + x + "  ");
+        }
+
+        private void setDtm() {
+            dtm.setText("(No mate)" + "  ");
         }
 
         public void addHistory(String move, String FEN) {
@@ -99,10 +134,22 @@ public class ChessBoard extends JFrame implements MouseListener, MouseMotionList
 
             JPanel panel = new JPanel();
             panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
-            label = new JLabel();
-            panel.add(label);
-            label.setText("Loading StockFish 16 Evaluation");
-            label.setFont(new Font(Font.DIALOG, Font.PLAIN, 16));
+            evalLabel = new JLabel();
+            dtz = new JLabel();
+            dtm = new JLabel();
+            panel.add(evalLabel);
+            JPanel dtzdtm = new JPanel();
+            dtzdtm.setLayout(new BoxLayout(dtzdtm, BoxLayout.X_AXIS));
+            dtzdtm.add(dtz);
+            dtzdtm.add(dtm);
+            dtzdtm.setAlignmentX(Component.LEFT_ALIGNMENT);
+            panel.add(dtzdtm);
+            Font newFont = new Font(Font.DIALOG, Font.PLAIN, 16);
+            evalLabel.setText("Loading StockFish 16 Evaluation");
+            evalLabel.setFont(newFont);
+
+            dtz.setFont(newFont);
+            dtm.setFont(newFont);
             this.historyPanel = new JPanel();
             historyPanel.setLayout(new BoxLayout(historyPanel, BoxLayout.Y_AXIS));
             historyPanel.setBorder(new EmptyBorder(0, 3, 3, 3));

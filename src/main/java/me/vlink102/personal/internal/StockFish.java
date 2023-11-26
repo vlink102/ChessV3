@@ -1,5 +1,6 @@
 package me.vlink102.personal.internal;
 
+import chariot.model.CloudEvalCacheEntry;
 import me.vlink102.personal.Main;
 import me.vlink102.personal.game.GameManager;
 import me.vlink102.personal.game.SimpleMove;
@@ -8,6 +9,8 @@ import org.apache.commons.io.IOUtils;
 import java.awt.*;
 import java.io.*;
 import java.lang.reflect.InvocationTargetException;
+import java.util.List;
+import java.util.StringJoiner;
 import java.util.concurrent.CompletableFuture;
 
 public class StockFish {
@@ -45,6 +48,7 @@ public class StockFish {
                     engineProcess.getInputStream()));
             processWriter = new OutputStreamWriter(
                     engineProcess.getOutputStream());
+
             EventQueue.invokeLater(() -> {
                 manager.recursiveMoves(manager.getInternalBoard());
             });
@@ -54,6 +58,7 @@ public class StockFish {
                 System.out.println("Please use a Windows OS, this program will not work on MacOS");
                 System.out.println("Stockfish evaluation disabled.");
                 Main.OPPONENT = Main.MoveType.PLAYER;
+                Main.SELF = Main.MoveType.PLAYER;
                 Main.stockFish = null;
             }
             return false;
@@ -94,7 +99,7 @@ public class StockFish {
             while (true) {
                 String text = processReader.readLine();
                 buffer.append(text).append("\n");
-                if (text.startsWith("bestmove")) {
+                if (text != null && text.startsWith("bestmove ")) {
                     break;
                 }
             }
@@ -104,10 +109,18 @@ public class StockFish {
         return buffer.toString();
     }
 
-    public void getBestMove(String fen, int waitTime) {
+    public String generateMoves() {
+        StringJoiner joiner = new StringJoiner(" ");
+        for (String s : manager.uciHistory) {
+            joiner.add(s);
+        }
+        return (joiner.toString().equalsIgnoreCase("") ? "" : " " + joiner);
+    }
+
+    public void getBestMove(String fen) {
         sendCommand("ucinewgame");
         sendCommand("position fen " + fen);
-        sendCommand("go movetime " + waitTime);
+        sendCommand("go depth 245 movetime 3000");
         CompletableFuture<String> move = CompletableFuture.supplyAsync(this::getBestMoveOutput);
         move.thenAccept((data) -> {
             float eval = 0.0f;
@@ -135,11 +148,12 @@ public class StockFish {
                 }
             }
             String newData = data.split("bestmove ")[1];
-            if (newData.contains("\s")) {
+            if (newData.contains(" ")) {
                 newData = newData.split(" ")[0];
             }
             SimpleMove parsedMove = SimpleMove.parseStockFishMove(manager.getInternalBoard(), newData);
             String parsedMoveString = parsedMove.deepToString(manager, manager.getInternalBoard());
+
             manager.movePiece(manager.getInternalBoard(), parsedMove);
             //drawBoard(manager.generateCurrentFEN());
 
@@ -147,15 +161,13 @@ public class StockFish {
                 float finalEval = eval;
                 int finalMateNo = mateNo;
                 EventQueue.invokeAndWait(() -> {
-                    if (finalMateNo > 0) {
-                        manager.getBoard().getEvalBoard().setEval(finalMateNo);
-                    } else {
-                        manager.getBoard().getEvalBoard().setEval(finalEval / 100f);
-                    }
+                    Integer dtzam = finalMateNo == 0 ? null : finalMateNo;
+                    manager.getBoard().getEvalBoard().updateEval(finalEval / 100f, dtzam, dtzam);
                     manager.refreshBoard(ChessBoard.WHITE_VIEW);
                     String currentFEN = manager.generateCurrentFEN();
-                    manager.getHistory().add(currentFEN);
+                    manager.history.add(currentFEN);
                     manager.getBoard().getEvalBoard().addHistory(parsedMoveString, currentFEN);
+                    manager.uciHistory.add(parsedMove.toUCI());
                     manager.getBoard().getContentPane().paintComponents(manager.getBoard().getContentPane().getGraphics());
                     if (!manager.endGame()) {
                         manager.recursiveMoves(manager.getInternalBoard());
@@ -172,7 +184,7 @@ public class StockFish {
             sendCommand("quit");
             processReader.close();
             processWriter.close();
-        } catch (IOException e) {
+        } catch (IOException ignored) {
         }
     }
 

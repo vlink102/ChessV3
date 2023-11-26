@@ -21,24 +21,30 @@ import java.util.stream.Collectors;
 public class GameManager {
     private final ChessBoard board;
     private final Random random;
-    private final List<String> history;
+    public final List<String> history;
+    public final List<String> uciHistory;
     private GamePlay gamePlay;
     private PieceWrapper[][] internalBoard;
     private Tile enPassant;
     private Tile enPassantPiece;
 
+    public static String startingFEN;
+
     public GameManager(ChessBoard board, String fen) {
+        startingFEN = fen;
         this.board = board;
         this.internalBoard = fromFEN(fen);
         this.gamePlay = gamePlayFromFEN(fen);
         this.enPassant = Tile.parseTile(fen.split(" ")[3]);
         this.enPassantPiece = null;
         this.history = new ArrayList<>();
+        this.uciHistory = new ArrayList<>();
         refreshBoard(ChessBoard.WHITE_VIEW);
         random = ThreadLocalRandom.current();
     }
 
     public GameManager(ChessBoard board) {
+        startingFEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
         this.board = board;
         this.internalBoard = new PieceWrapper[8][8];
         setupPieces();
@@ -46,6 +52,7 @@ public class GameManager {
         this.enPassant = null;
         this.enPassantPiece = null;
         this.history = new ArrayList<>();
+        this.uciHistory = new ArrayList<>();
         refreshBoard(ChessBoard.WHITE_VIEW);
         random = ThreadLocalRandom.current();
     }
@@ -93,16 +100,14 @@ public class GameManager {
         return builder.toString();
     }
 
-    public List<String> getHistory() {
-        return history;
-    }
-
     public void reset(String fen) {
+        startingFEN = fen;
         this.gamePlay = null;
         this.internalBoard = null;
         this.enPassantPiece = null;
         this.enPassant = null;
         this.history.clear();
+        this.uciHistory.clear();
 
         this.internalBoard = fromFEN(fen);
         this.gamePlay = gamePlayFromFEN(fen);
@@ -118,12 +123,14 @@ public class GameManager {
     }
 
     public void reset() {
+        startingFEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
         this.internalBoard = new PieceWrapper[8][8];
         setupPieces();
         this.gamePlay = new GamePlay(this);
         this.enPassant = null;
         this.enPassantPiece = null;
         this.history.clear();
+        this.uciHistory.clear();
         this.board.getEvalBoard().clearHistory();
         refreshBoard(ChessBoard.WHITE_VIEW);
         EventQueue.invokeLater(() -> {
@@ -147,7 +154,6 @@ public class GameManager {
         String[] rows = newFen.split("/");
         for (int i = 0; i < 8; i++) {
             String row = rows[i];
-            System.out.println(row);
             for (int j = 0; j < 8; j++) {
                 board[7 - i][7 - j] = fromString(new Tile(i, j), row.substring(j, j + 1), fen);
             }
@@ -260,6 +266,7 @@ public class GameManager {
         if (history.size() == 0 || !history.get(history.size() - 1).equalsIgnoreCase(currentFEN)) {
             history.add(currentFEN);
             this.board.getEvalBoard().addHistory(moveString, currentFEN);
+            uciHistory.add(move.toUCI());
         }
         if (!endGame()) {
             recursiveMoves(board);
@@ -270,12 +277,12 @@ public class GameManager {
         if (getPiecesOnBoard() <= 7) {
             // run through 14 terabyte syzygy table base
             try {
-                Main.syzygyTableBases.computerMove(board, generateCurrentFEN());
+                Main.syzygyTableBases.computerMove(generateFENString(board, gamePlay.isWhiteToMove(), new CastleState(gamePlay.isCastleWhiteKing(), gamePlay.isCastleBlackKing(), gamePlay.isCastleWhiteQueen(), gamePlay.isCastleBlackQueen()), enPassant, gamePlay.getFullMoveCounter(), gamePlay.getHalfMoveCounter()));
             } catch (InterruptedException | InvocationTargetException e) {
                 throw new RuntimeException(e);
             }
         } else {
-            Main.stockFish.getBestMove(generateFENString(board, gamePlay.isWhiteToMove(), new CastleState(gamePlay.isCastleWhiteKing(), gamePlay.isCastleBlackKing(), gamePlay.isCastleWhiteQueen(), gamePlay.isCastleBlackQueen()), enPassant, gamePlay.getFullMoveCounter(), gamePlay.getHalfMoveCounter()), (int) (ChessBoard.COMPUTER_WAIT_TIME * 1000));
+            Main.stockFish.getBestMove(generateFENString(board, gamePlay.isWhiteToMove(), new CastleState(gamePlay.isCastleWhiteKing(), gamePlay.isCastleBlackKing(), gamePlay.isCastleWhiteQueen(), gamePlay.isCastleBlackQueen()), enPassant, gamePlay.getFullMoveCounter(), gamePlay.getHalfMoveCounter()));
         }
     }
 
@@ -334,6 +341,7 @@ public class GameManager {
                         refreshBoard(ChessBoard.WHITE_VIEW);
                         String currentFEN = generateCurrentFEN();
                         history.add(currentFEN);
+                        uciHistory.add(move.toUCI());
                         GameManager.this.board.getEvalBoard().addHistory(moveString, currentFEN);
                         GameManager.this.board.getContentPane().paintComponents(GameManager.this.board.getContentPane().getGraphics());
                         if (!endGame()) {
@@ -350,22 +358,127 @@ public class GameManager {
 
     public boolean endGame() {
         if (isCheckmated(internalBoard, gamePlay.isWhiteToMove())) {
+
             JOptionPane.showMessageDialog(null, (gamePlay.isWhiteToMove() ? "Black" : "White") + " wins by checkmate", "Game over", JOptionPane.INFORMATION_MESSAGE);
+
             return true;
         }
         if (isStalemate(internalBoard)) {
+
             JOptionPane.showMessageDialog(null, "Game drawn by stalemate", "Game over", JOptionPane.INFORMATION_MESSAGE);
+
             return true;
         }
         if (gamePlay.getFiftyMoveRule() >= 50) {
-            JOptionPane.showMessageDialog(null, "Game draw by fifty-move rule", "Game over", JOptionPane.INFORMATION_MESSAGE);
+
+            JOptionPane.showMessageDialog(null, "Game drawn by fifty-move rule", "Game over", JOptionPane.INFORMATION_MESSAGE);
+
             return true;
         }
         if (isThreeFoldRepetition()) {
-            JOptionPane.showMessageDialog(null, "Game draw by three-fold repetition", "Game over", JOptionPane.INFORMATION_MESSAGE);
+
+            JOptionPane.showMessageDialog(null, "Game drawn by three-fold repetition", "Game over", JOptionPane.INFORMATION_MESSAGE);
+
             return true;
         }
+        if (isInsufficientMaterial(simplifyFEN(generateCurrentFEN()))) {
+
+            JOptionPane.showMessageDialog(null, "Game drawn by insufficient material", "Game over", JOptionPane.INFORMATION_MESSAGE);
+
+
+            return true;
+        }
+
         return false;
+    }
+
+    public String simplifyFEN(String FEN) {
+        String result = FEN;
+        result = result.split(" ")[0];
+        result = result.replaceAll("\\d", "");
+        result = result.replaceAll("/", "");
+        result = result.replaceAll("\\(", "");
+        result = result.replaceAll("\\)", "");
+        return result;
+    }
+
+    public boolean isInsufficientMaterial(String truncated) {
+        String k_vs_K = anagramRegex("kK");
+        String k_vs_KN = anagramRegex("kKN");
+        String kn_vs_K = anagramRegex("knK");
+        String k_vs_KB = anagramRegex("kKB");
+        String kb_vs_K = anagramRegex("kbK");
+
+        if (truncated.equals("")) {
+            return true;
+        }
+        if (truncated.matches(k_vs_K)) {
+            return true;
+        }
+        if (truncated.matches(k_vs_KN)) {
+            return true;
+        }
+        if (truncated.matches(kn_vs_K)) {
+            return true;
+        }
+        if (truncated.matches(k_vs_KB)) {
+            return true;
+        }
+        if (truncated.matches(kb_vs_K)) {
+            return true;
+        }
+
+        String kb_vs_KB = anagramRegex("kbKB");
+        if (truncated.matches(kb_vs_KB)) {
+            boolean bishop1White = false;
+            boolean bishop2White = false;
+            for (int i = 0; i < 8; i++) {
+                for (int j = 0; j < 8; j++) {
+                    PieceWrapper piece = internalBoard[i][j];
+                    if (piece != null) {
+                        if (piece instanceof Bishop && (i + j) % 2 == 0) {
+                            if (!bishop1White) {
+                                bishop1White = true;
+                            } else {
+                                bishop2White = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+
+            return bishop1White == bishop2White;
+        }
+
+        return false;
+    }
+
+    public String anagramRegex(String truncatedFEN) {
+        StringBuilder lookahead = new StringBuilder();
+        StringBuilder matchPart = new StringBuilder("^");
+        String positiveLookaheadPrefix = "(?=";
+        String positiveLookaheadSuffix = ")";
+        HashMap<String, Integer> inputCharacterFrequencyMap = new HashMap<>();
+        for (int i = 0; i < truncatedFEN.length(); i++) {
+            String s = String.valueOf(truncatedFEN.charAt(i));
+            inputCharacterFrequencyMap.put(s, inputCharacterFrequencyMap.getOrDefault(s + 1, 1));
+        }
+        for (String string : inputCharacterFrequencyMap.keySet()) {
+            lookahead.append(positiveLookaheadPrefix);
+            for (int i = 0; i < inputCharacterFrequencyMap.get(string); i++) {
+                lookahead.append(".*");
+                if (string.equals(" ")) {
+                    lookahead.append("\\s");
+                } else {
+                    lookahead.append(string);
+                }
+                matchPart.append(".");
+            }
+            lookahead.append(positiveLookaheadSuffix);
+        }
+        matchPart.append("$");
+        return lookahead.toString() + matchPart;
     }
 
     public List<String> truncatedHistory() {

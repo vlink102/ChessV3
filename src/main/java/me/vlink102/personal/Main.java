@@ -41,7 +41,11 @@ public class Main {
 
                     stockFish.sendCommand("uci");
                     System.out.println(stockFish.getOutput(0));
-                    stockFish.sendCommand("setoption name SyzygyPath value ");
+                    //stockFish.sendCommand("setoption name SyzygyPath value ");
+                    stockFish.sendCommand("setoption name MultiPV value 3");
+                    stockFish.sendCommand("setoption name Contempt value 24");
+                    stockFish.sendCommand("setoption name Threads value 5");
+
                 } else {
                     System.out.println("Something went wrong...");
                 }

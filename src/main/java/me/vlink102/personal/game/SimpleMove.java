@@ -55,6 +55,10 @@ public class SimpleMove {
         return ((!(piece instanceof Pawn)) ? piece.getType().getAbbr().substring(1,2).toUpperCase() : "") + to.toString();
     }
 
+    public String toUCI() {
+        return from.toString() + to.toString() + (promotionPieces != null && promotionPieces.length != 0 ? promotionPieces[0].getType().getNamedNotation().toLowerCase() : "");
+    }
+
     public String deepToString(GameManager manager, PieceWrapper[][] board) {
         PieceWrapper[][] result = manager.getResultBoard(board, this);
         StringBuilder builder = new StringBuilder();
@@ -117,7 +121,7 @@ public class SimpleMove {
         if (stockFishMove.length() == 4) {
             return new SimpleMove(from, to, board);
         } else {
-            String promotionPieceString = stockFishMove.substring(4);
+            String promotionPieceString = stockFishMove.substring(4,5).toLowerCase();
             int pieceNum = switch (promotionPieceString) {
                 case "q" -> 0;
                 case "r" -> 1;

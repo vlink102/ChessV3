@@ -6,7 +6,7 @@
 
     <groupId>me.vlink102.personal</groupId>
     <artifactId>ChessV3</artifactId>
-    <version>4x74-BUILD</version>
+    <version>5x04-BUILD</version>
     <build>
         <plugins>
             <plugin>

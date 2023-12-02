@@ -8,6 +8,7 @@ import me.vlink102.personal.game.pieces.*;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
+import javax.swing.event.ChangeListener;
 import java.awt.*;
 import java.awt.datatransfer.Clipboard;
 import java.awt.datatransfer.DataFlavor;
@@ -15,8 +16,9 @@ import java.awt.datatransfer.StringSelection;
 import java.awt.datatransfer.UnsupportedFlavorException;
 import java.awt.event.*;
 import java.io.IOException;
-import java.util.Objects;
-import java.util.StringJoiner;
+import java.util.*;
+import java.util.List;
+import java.util.Timer;
 
 public class ChessBoard extends JFrame implements MouseListener, MouseMotionListener {
     JLayeredPane layeredPane;
@@ -28,7 +30,7 @@ public class ChessBoard extends JFrame implements MouseListener, MouseMotionList
 
     private final int pieceSize;
     public static boolean WHITE_VIEW = true;
-    public static final float COMPUTER_WAIT_TIME = 3; // seconds
+    public static int COMPUTER_WAIT_TIME_MS = 3000;
 
     public static boolean IGNORE_RULES = false;
 
@@ -53,6 +55,16 @@ public class ChessBoard extends JFrame implements MouseListener, MouseMotionList
         private final JLabel dtm;
         private final JPanel historyPanel;
 
+        private final List<Double> positionalChances;
+
+        public Double getLastEvaluation() {
+            return positionalChances.get(positionalChances.size() - 1);
+        }
+
+        public List<Double> getPositionalChances() {
+            return positionalChances;
+        }
+
         public void updateEval(Float eval, Integer dtz, Integer dtm) {
             if (eval == null) {
                 setEval();
@@ -72,18 +84,20 @@ public class ChessBoard extends JFrame implements MouseListener, MouseMotionList
         }
 
         private void setEval() {
-            evalLabel.setText("(Evaluation Unknown)");
+            evalLabel.setText("Evaluation: ±0.00");
+            positionalChances.add(StockFish.getWinningChances(0d));
         }
 
         private void setEval(float eval) {
-            evalLabel.setText("Evaluation: " + (eval > 0.0f ? "+" : "") + eval);
+            evalLabel.setText("Evaluation: " + (eval > 0.0f ? "+" : (eval == 0.0f ? "±" : "")) + eval);
+            positionalChances.add(StockFish.getWinningChances(eval * 100d));
         }
         private void setDtz(int x) {
             dtz.setText("DTZ: " + x + "  ");
         }
 
         private void setDtz() {
-            dtz.setText("(DTZ Unknown)" + "  ");
+            dtz.setText(null);
         }
 
         private void setDtm(int x) {
@@ -91,7 +105,7 @@ public class ChessBoard extends JFrame implements MouseListener, MouseMotionList
         }
 
         private void setDtm() {
-            dtm.setText("(No mate)" + "  ");
+            dtm.setText(null);
         }
 
         public void addHistory(String move, String FEN) {
@@ -122,6 +136,23 @@ public class ChessBoard extends JFrame implements MouseListener, MouseMotionList
             historyPanel.removeAll();
         }
 
+        public void reset() {
+            clearHistory();
+            positionalChances.clear();
+            this.evalLabel.setText("Resetting...");
+            Timer timer = new Timer();
+            timer.schedule(new TimerTask() {
+                @Override
+                public void run() {
+                    if (Main.stockFish == null) {
+                        evalLabel.setText("[Evaluation disabled]");
+                    } else {
+                        setEval();
+                    }
+                }
+            }, 1000);
+        }
+
         public EvalBoard(int size) {
             Dimension dimension = new Dimension(size / 2, size);
             this.setPreferredSize(dimension);
@@ -131,6 +162,8 @@ public class ChessBoard extends JFrame implements MouseListener, MouseMotionList
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
+
+            this.positionalChances = new ArrayList<>();
 
             JPanel panel = new JPanel();
             panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
@@ -145,7 +178,19 @@ public class ChessBoard extends JFrame implements MouseListener, MouseMotionList
             dtzdtm.setAlignmentX(Component.LEFT_ALIGNMENT);
             panel.add(dtzdtm);
             Font newFont = new Font(Font.DIALOG, Font.PLAIN, 16);
-            evalLabel.setText("Loading StockFish 16 Evaluation");
+            evalLabel.setText("Loading evaluation...");
+            Timer timer = new Timer();
+            timer.schedule(new TimerTask() {
+                @Override
+                public void run() {
+                    if (Main.stockFish == null) {
+                        evalLabel.setText("[Evaluation disabled]");
+                    } else {
+                        setEval();
+                    }
+                }
+            }, 1000);
+
             evalLabel.setFont(newFont);
 
             dtz.setFont(newFont);
@@ -164,6 +209,105 @@ public class ChessBoard extends JFrame implements MouseListener, MouseMotionList
             this.pack();
             this.setLocationRelativeTo(null);
             this.setVisible(true);
+        }
+    }
+
+    private static class SliderPopupListener extends MouseAdapter {
+        private final JWindow toolTip = new JWindow();
+        private final JLabel label = new JLabel("", SwingConstants.CENTER);
+        private final Dimension size = new Dimension(80, 20);
+        private int prevValue = -1;
+        private final SliderClass type;
+
+        enum SliderType implements SliderClass {
+            TIME,
+            VALUE;
+
+            @Override
+            public SliderType getType() {
+                return this;
+            }
+
+            @Override
+            public String getLabel() {
+                return "";
+            }
+        }
+
+        public record SliderTypeLabel(SliderType sliderType, String sliderLabel) implements SliderClass {
+            @Override
+            public SliderType getType() {
+                return sliderType;
+            }
+
+            @Override
+            public String getLabel() {
+                return sliderLabel;
+            }
+        }
+
+        interface SliderClass {
+            SliderType getType();
+            String getLabel();
+        }
+
+        protected SliderPopupListener(SliderClass type) {
+            super();
+            label.setOpaque(false);
+            label.setBackground(UIManager.getColor("ToolTip.background"));
+            label.setBorder(UIManager.getBorder("ToolTip.border"));
+            toolTip.add(label);
+            toolTip.setSize(size);
+            toolTip.setAlwaysOnTop(true);
+            this.type = type;
+        }
+        protected void updateToolTip(MouseEvent me) {
+            JSlider slider = (JSlider) me.getComponent();
+            int intValue = slider.getValue();
+            if (prevValue != intValue) {
+                switch (type.getType()) {
+                    case TIME -> label.setText(slider.getValue() + " ms (" + (slider.getValue() / 1000) + "s)");
+                    case VALUE -> {
+                        if (!Objects.equals(type.getLabel(), "")) {
+                            String newLabel = type.getLabel();
+                            if (newLabel.startsWith(" ")) {
+                                label.setText(slider.getValue() + type.getLabel());
+                            } else {
+                                label.setText(type.getLabel() + slider.getValue());
+                            }
+                        }
+                    }
+                }
+                Point pt = me.getPoint();
+                pt.y = -size.height;
+                SwingUtilities.convertPointToScreen(pt, me.getComponent());
+                pt.translate(-size.width / 2, 0);
+                toolTip.setLocation(pt);
+            }
+            prevValue = intValue;
+        }
+        @Override
+        public void mouseDragged(MouseEvent me) {
+            updateToolTip(me);
+        }
+        @Override
+        public void mousePressed(MouseEvent me) {
+            if (UIManager.getBoolean("Slider.onlyLeftMouseButtonDrag")
+                    && SwingUtilities.isLeftMouseButton(me)) {
+                toolTip.setVisible(true);
+                updateToolTip(me);
+            }
+        }
+        @Override
+        public void mouseReleased(MouseEvent me) {
+            toolTip.setVisible(false);
+        }
+        @Override
+        public void mouseWheelMoved(MouseWheelEvent e) {
+            JSlider s = (JSlider) e.getComponent();
+            int i = s.getValue() - e.getWheelRotation();
+            BoundedRangeModel m = s.getModel();
+            s.setValue(Math.min(Math.max(i, m.getMinimum()), m.getMaximum()));
         }
     }
 
@@ -229,6 +373,8 @@ public class ChessBoard extends JFrame implements MouseListener, MouseMotionList
         JCheckBoxMenuItem viewFromWhite = new JCheckBoxMenuItem("View from white?");
         viewFromWhite.addItemListener(e -> ChessBoard.WHITE_VIEW = viewFromWhite.isSelected());
         viewFromWhite.setSelected(ChessBoard.WHITE_VIEW);
+
+
 
         JMenu opponent = new JMenu("Opponent Type");
         ButtonGroup opponentGroup = new ButtonGroup();
@@ -312,6 +458,9 @@ public class ChessBoard extends JFrame implements MouseListener, MouseMotionList
         ignoreRules.setSelected(IGNORE_RULES);
 
 
+
+        JMenu computerSettings = new JMenu("Computer Settings");
+
         menu.add(setFEN);
         menu.add(copyFEN);
         menu.add(viewFromWhite);
@@ -320,8 +469,29 @@ public class ChessBoard extends JFrame implements MouseListener, MouseMotionList
         commands.add(ignoreRules);
         commands.add(resetGame);
         commands.add(quitProgram);
+        computerSettings.add(getSlider(SliderPopupListener.SliderType.TIME, 0, 20000, COMPUTER_WAIT_TIME_MS, 1000, 100, "Engine Time", e -> {
+            JSlider slider = (JSlider) e.getSource();
+            if (slider.getValueIsAdjusting()) return;
+            COMPUTER_WAIT_TIME_MS = slider.getValue();
+        }));
+        computerSettings.add(getSlider(new SliderPopupListener.SliderTypeLabel(SliderPopupListener.SliderType.VALUE, " threads"), 1, Main.CPU_CORES, Main.CPU_CORES, 1, 1, "Engine Threads", e -> {
+            JSlider slider = (JSlider) e.getSource();
+            if (slider.getValueIsAdjusting()) return;
+            Main.stockFish.sendCommand("setoption name Threads value " + slider.getValue());
+        }));
+        computerSettings.add(getSlider(new SliderPopupListener.SliderTypeLabel(SliderPopupListener.SliderType.VALUE, " variations"), 1, 100, 1, 1, 1, "Engine Principal Variation", e -> {
+            JSlider slider = (JSlider) e.getSource();
+            if (slider.getValueIsAdjusting()) return;
+            Main.stockFish.sendCommand("setoption name MultiPV value " + slider.getValue());
+        }));
+        computerSettings.add(getSlider(new SliderPopupListener.SliderTypeLabel(SliderPopupListener.SliderType.VALUE, "Level "), 0, 20, 20, 1, 1, "Engine Strength", e -> {
+            JSlider slider = (JSlider) e.getSource();
+            if (slider.getValueIsAdjusting()) return;
+            Main.stockFish.sendCommand("setoption name Skill Level value " + slider.getValue());
+        }));
         jMenuBar.add(menu);
         jMenuBar.add(commands);
+        jMenuBar.add(computerSettings);
         this.setJMenuBar(jMenuBar);
         this.pack();
         this.setLocationRelativeTo(null);
@@ -330,6 +500,36 @@ public class ChessBoard extends JFrame implements MouseListener, MouseMotionList
         this.manager = new GameManager(this);
         //r3k2r/pbppqpb1/1pn3p1/7p/1N2p1n1/1PP4N/PB1P1PPP/2QRKR2 w kq - 0 1
         this.evalBoard = new EvalBoard(size);
+    }
+
+    public static JMenuItem getSlider(SliderPopupListener.SliderClass type, int min, int max, int defaultValue, int steps, int minorSteps, String label, ChangeListener listener) {
+        JSlider slider = new JSlider(JSlider.HORIZONTAL, min, max, defaultValue) {
+            private SliderPopupListener popupHandler;
+            @Override
+            public void updateUI() {
+                removeMouseMotionListener(popupHandler);
+                removeMouseListener(popupHandler);
+                removeMouseWheelListener(popupHandler);
+                super.updateUI();
+                popupHandler = new SliderPopupListener(type);
+                addMouseMotionListener(popupHandler);
+                addMouseListener(popupHandler);
+                addMouseWheelListener(popupHandler);
+            }
+        };
+        slider.setMajorTickSpacing(steps);
+        slider.setMinorTickSpacing(minorSteps);
+        slider.setSnapToTicks(true);
+        slider.addChangeListener(listener);
+
+        JMenuItem menuItem = new JMenuItem();
+        menuItem.setPreferredSize(new Dimension(150, 40));
+        menuItem.setLayout(new BoxLayout(menuItem, BoxLayout.Y_AXIS));
+        JLabel menuLabel = new JLabel(label);
+        menuLabel.setHorizontalAlignment(SwingConstants.LEFT);
+        menuItem.add(menuLabel);
+        menuItem.add(slider);
+        return menuItem;
     }
 
     public void mousePressed(MouseEvent e) {
@@ -342,7 +542,7 @@ public class ChessBoard extends JFrame implements MouseListener, MouseMotionList
         chessPiece.setLocation(e.getX() - (chessPiece.getWidth() / 2), e.getY()  - (chessPiece.getWidth() / 2));
 
         layeredPane.add(chessPiece, JLayeredPane.DRAG_LAYER);
-        layeredPane.setCursor(Cursor.getPredefinedCursor(Cursor.MOVE_CURSOR));
+        layeredPane.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
 
         clicked = e.getPoint();
 

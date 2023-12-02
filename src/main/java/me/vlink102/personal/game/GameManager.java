@@ -113,10 +113,10 @@ public class GameManager {
         this.gamePlay = gamePlayFromFEN(fen);
         this.enPassant = Tile.parseTile(fen.split(" ")[3]);
         this.enPassantPiece = null;
-        this.board.getEvalBoard().clearHistory();
+        this.board.getEvalBoard().reset();
         refreshBoard(ChessBoard.WHITE_VIEW);
         EventQueue.invokeLater(() -> {
-            computerMove(internalBoard);
+            computerMove();
             Container panel = board.getContentPane();
             panel.paintComponents(panel.getGraphics());
         });
@@ -131,10 +131,10 @@ public class GameManager {
         this.enPassantPiece = null;
         this.history.clear();
         this.uciHistory.clear();
-        this.board.getEvalBoard().clearHistory();
+        this.board.getEvalBoard().reset();
         refreshBoard(ChessBoard.WHITE_VIEW);
         EventQueue.invokeLater(() -> {
-            computerMove(internalBoard);
+            computerMove();
             Container panel = board.getContentPane();
             panel.paintComponents(panel.getGraphics());
         });
@@ -257,32 +257,43 @@ public class GameManager {
         return play;
     }
 
+    public GamePlay getGamePlay() {
+        return gamePlay;
+    }
+
     public void playerMovePiece(Tile from, Tile to, PieceWrapper[][] board, PieceWrapper... promotionPiece) {
         SimpleMove move = new SimpleMove(from, to, board, promotionPiece);
+        if (move.getPiece() == null) {
+            refreshBoard(ChessBoard.WHITE_VIEW);
+            return;
+        }
         String moveString = move.deepToString(this, board);
         movePiece(board, move);
-        refreshBoard(ChessBoard.WHITE_VIEW);
         String currentFEN = generateCurrentFEN();
+        Main.evaluation.moveMade(currentFEN);
+        //Float eval = Main.stockFish.getEvaluation(currentFEN);
+        refreshBoard(ChessBoard.WHITE_VIEW);
         if (history.size() == 0 || !history.get(history.size() - 1).equalsIgnoreCase(currentFEN)) {
             history.add(currentFEN);
             this.board.getEvalBoard().addHistory(moveString, currentFEN);
+            //this.board.getEvalBoard().updateEval(eval, null, null);
             uciHistory.add(move.toUCI());
         }
         if (!endGame()) {
-            recursiveMoves(board);
+            recursiveMoves();
         }
     }
 
-    public void computerMove(PieceWrapper[][] board) {
+    public void computerMove() {
         if (getPiecesOnBoard() <= 7) {
             // run through 14 terabyte syzygy table base
             try {
-                Main.syzygyTableBases.computerMove(generateFENString(board, gamePlay.isWhiteToMove(), new CastleState(gamePlay.isCastleWhiteKing(), gamePlay.isCastleBlackKing(), gamePlay.isCastleWhiteQueen(), gamePlay.isCastleBlackQueen()), enPassant, gamePlay.getFullMoveCounter(), gamePlay.getHalfMoveCounter()));
+                Main.syzygyTableBases.computerMove(generateCurrentFEN());
             } catch (InterruptedException | InvocationTargetException e) {
                 throw new RuntimeException(e);
             }
         } else {
-            Main.stockFish.getBestMove(generateFENString(board, gamePlay.isWhiteToMove(), new CastleState(gamePlay.isCastleWhiteKing(), gamePlay.isCastleBlackKing(), gamePlay.isCastleWhiteQueen(), gamePlay.isCastleBlackQueen()), enPassant, gamePlay.getFullMoveCounter(), gamePlay.getHalfMoveCounter()));
+            Main.stockFish.getBestMove(generateCurrentFEN());
         }
     }
 
@@ -298,29 +309,29 @@ public class GameManager {
         return c;
     }
 
-    public void recursiveMoves(PieceWrapper[][] board) {
+    public void recursiveMoves() {
         if (gamePlay.isWhiteToMove()) {
             if (ChessBoard.WHITE_VIEW) {
                 switch (Main.SELF) {
-                    case COMPUTER -> computerMove(board);
-                    case RANDOM -> randomMove(board);
+                    case COMPUTER -> computerMove();
+                    case RANDOM -> randomMove(internalBoard);
                 }
             } else {
                 switch (Main.OPPONENT) {
-                    case COMPUTER -> computerMove(board);
-                    case RANDOM -> randomMove(board);
+                    case COMPUTER -> computerMove();
+                    case RANDOM -> randomMove(internalBoard);
                 }
             }
         } else {
             if (ChessBoard.WHITE_VIEW) {
                 switch (Main.OPPONENT) {
-                    case COMPUTER -> computerMove(board);
-                    case RANDOM -> randomMove(board);
+                    case COMPUTER -> computerMove();
+                    case RANDOM -> randomMove(internalBoard);
                 }
             } else {
                 switch (Main.SELF) {
-                    case COMPUTER -> computerMove(board);
-                    case RANDOM -> randomMove(board);
+                    case COMPUTER -> computerMove();
+                    case RANDOM -> randomMove(internalBoard);
                 }
             }
         }
@@ -336,16 +347,19 @@ public class GameManager {
                 assert move != null;
                 String moveString = move.deepToString(GameManager.this, board);
                 movePiece(board, move);
+                String currentFEN = generateCurrentFEN();
+                Main.evaluation.moveMade(currentFEN);
+                //Float eval = Main.stockFish.getEvaluation(currentFEN);
                 try {
                     EventQueue.invokeAndWait(() -> {
+                        //GameManager.this.board.getEvalBoard().updateEval(eval, null, null);
                         refreshBoard(ChessBoard.WHITE_VIEW);
-                        String currentFEN = generateCurrentFEN();
                         history.add(currentFEN);
                         uciHistory.add(move.toUCI());
                         GameManager.this.board.getEvalBoard().addHistory(moveString, currentFEN);
                         GameManager.this.board.getContentPane().paintComponents(GameManager.this.board.getContentPane().getGraphics());
                         if (!endGame()) {
-                            recursiveMoves(board);
+                            recursiveMoves();
                         }
                     });
                 } catch (InterruptedException | InvocationTargetException e) {
@@ -358,32 +372,30 @@ public class GameManager {
 
     public boolean endGame() {
         if (isCheckmated(internalBoard, gamePlay.isWhiteToMove())) {
-
-            JOptionPane.showMessageDialog(null, (gamePlay.isWhiteToMove() ? "Black" : "White") + " wins by checkmate", "Game over", JOptionPane.INFORMATION_MESSAGE);
-
+            EventQueue.invokeLater(() -> JOptionPane.showMessageDialog(null, (gamePlay.isWhiteToMove() ? "Black" : "White") + " wins by checkmate", "Game over", JOptionPane.INFORMATION_MESSAGE));
             return true;
         }
         if (isStalemate(internalBoard)) {
 
-            JOptionPane.showMessageDialog(null, "Game drawn by stalemate", "Game over", JOptionPane.INFORMATION_MESSAGE);
+            EventQueue.invokeLater(() -> JOptionPane.showMessageDialog(null, "Game drawn by stalemate", "Game over", JOptionPane.INFORMATION_MESSAGE));
 
             return true;
         }
         if (gamePlay.getFiftyMoveRule() >= 50) {
 
-            JOptionPane.showMessageDialog(null, "Game drawn by fifty-move rule", "Game over", JOptionPane.INFORMATION_MESSAGE);
+            EventQueue.invokeLater(() -> JOptionPane.showMessageDialog(null, "Game drawn by fifty-move rule", "Game over", JOptionPane.INFORMATION_MESSAGE));
 
             return true;
         }
         if (isThreeFoldRepetition()) {
 
-            JOptionPane.showMessageDialog(null, "Game drawn by three-fold repetition", "Game over", JOptionPane.INFORMATION_MESSAGE);
+            EventQueue.invokeLater(() -> JOptionPane.showMessageDialog(null, "Game drawn by three-fold repetition", "Game over", JOptionPane.INFORMATION_MESSAGE));
 
             return true;
         }
         if (isInsufficientMaterial(simplifyFEN(generateCurrentFEN()))) {
 
-            JOptionPane.showMessageDialog(null, "Game drawn by insufficient material", "Game over", JOptionPane.INFORMATION_MESSAGE);
+            EventQueue.invokeLater(() -> JOptionPane.showMessageDialog(null, "Game drawn by insufficient material", "Game over", JOptionPane.INFORMATION_MESSAGE));
 
 
             return true;

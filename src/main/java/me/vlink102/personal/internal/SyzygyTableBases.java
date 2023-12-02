@@ -2,6 +2,7 @@ package me.vlink102.personal.internal;
 
 import chariot.Client;
 import chariot.model.TablebaseResult;
+import me.vlink102.personal.Main;
 import me.vlink102.personal.game.GameManager;
 import me.vlink102.personal.game.PieceWrapper;
 import me.vlink102.personal.game.SimpleMove;
@@ -93,19 +94,21 @@ public class SyzygyTableBases {
         SimpleMove move = SimpleMove.parseStockFishMove(manager.getInternalBoard(), moveResult.uci());
         String parsedMoveString = move.deepToString(manager, manager.getInternalBoard());
         manager.movePiece(manager.getInternalBoard(), move);
+        String currentFEN = manager.generateCurrentFEN();
 
+        Main.evaluation.moveMade(currentFEN);
+        //Float eval = Main.stockFish.getEvaluation(currentFEN);
         //printTableBaseInfo(result);
         EventQueue.invokeLater(() -> {
-            manager.getBoard().getEvalBoard().updateEval((float) -1, result.dtz(), result.dtm());
+            //manager.getBoard().getEvalBoard().updateEval(eval, result.dtz(), result.dtm());
 
             manager.refreshBoard(ChessBoard.WHITE_VIEW);
-            String currentFEN = manager.generateCurrentFEN();
             manager.history.add(currentFEN);
             manager.uciHistory.add(move.toUCI());
             manager.getBoard().getEvalBoard().addHistory(parsedMoveString, currentFEN);
             manager.getBoard().getContentPane().paintComponents(manager.getBoard().getContentPane().getGraphics());
             if (!manager.endGame()) {
-                manager.recursiveMoves(manager.getInternalBoard());
+                manager.recursiveMoves();
             }
         });
         /*}*/

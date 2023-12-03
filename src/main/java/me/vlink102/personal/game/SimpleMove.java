@@ -56,7 +56,7 @@ public class SimpleMove {
     }
 
     public String toUCI() {
-        return from.toString() + to.toString() + (promotionPieces != null && promotionPieces.length != 0 ? promotionPieces[0].getType().getNamedNotation().toLowerCase() : "");
+        return from.toString() + to.toString() + ((promotionPieces != null && promotionPieces.length != 0) ? (promotionPieces[0] == null ? "" : promotionPieces[0].getType().getNamedNotation().toLowerCase()) : "");
     }
 
     public String deepToString(GameManager manager, PieceWrapper[][] board) {
@@ -114,6 +114,7 @@ public class SimpleMove {
     }
 
     public static SimpleMove parseStockFishMove(PieceWrapper[][] board, String stockFishMove) {
+        if (stockFishMove.equals("(none)")) return null;
         String fromString = stockFishMove.substring(0,2);
         String toString = stockFishMove.substring(2, 4);
         GameManager.Tile from = GameManager.Tile.parseTile(fromString);

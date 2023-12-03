@@ -6,7 +6,7 @@
 
     <groupId>me.vlink102.personal</groupId>
     <artifactId>ChessV3</artifactId>
-    <version>5x04-BUILD</version>
+    <version>v6.8.4</version>
     <build>
         <plugins>
             <plugin>
@@ -74,6 +74,11 @@
             <groupId>io.github.tors42</groupId>
             <artifactId>chariot</artifactId>
             <version>0.0.77</version>
+        </dependency>
+        <dependency>
+            <groupId>org.knowm.xchart</groupId>
+            <artifactId>xchart</artifactId>
+            <version>3.8.6</version>
         </dependency>
     </dependencies>
 

@@ -10,6 +10,7 @@ import me.vlink102.personal.game.SimpleMove;
 import java.awt.*;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * 8/5P2/8/8/p5r1/1p6/3R4/k1K5 w - - 0 1
@@ -89,28 +90,32 @@ public class SyzygyTableBases {
             }, 3600);
         } else {
             */
-        TablebaseResult result = client.tablebase().standard(FEN).get();
-        TablebaseResult.Move moveResult = result.moves().get(0);
-        SimpleMove move = SimpleMove.parseStockFishMove(manager.getInternalBoard(), moveResult.uci());
-        String parsedMoveString = move.deepToString(manager, manager.getInternalBoard());
-        manager.movePiece(manager.getInternalBoard(), move);
-        String currentFEN = manager.generateCurrentFEN();
+        CompletableFuture.runAsync(new Runnable() {
+            @Override
+            public void run() {
+                TablebaseResult result = client.tablebase().standard(FEN).get();
+                TablebaseResult.Move moveResult = result.moves().get(0);
+                SimpleMove move = SimpleMove.parseStockFishMove(manager.getInternalBoard(), moveResult.uci());
+                String parsedMoveString = move.deepToString(manager, manager.getInternalBoard());
+                manager.movePiece(manager.getInternalBoard(), move);
+                String currentFEN = manager.generateCurrentFEN();
 
-        Main.evaluation.moveMade(currentFEN);
-        //Float eval = Main.stockFish.getEvaluation(currentFEN);
-        //printTableBaseInfo(result);
-        EventQueue.invokeLater(() -> {
-            //manager.getBoard().getEvalBoard().updateEval(eval, result.dtz(), result.dtm());
+                //Float eval = Main.stockFish.getEvaluation(currentFEN);
+                //printTableBaseInfo(result);
+                EventQueue.invokeLater(() -> {
+                    manager.refreshBoard(ChessBoard.WHITE_VIEW);
+                    manager.getBoard().getEvalBoard().updateEvalDTZDTM( result.dtz(), result.dtm());
 
-            manager.refreshBoard(ChessBoard.WHITE_VIEW);
-            manager.history.add(currentFEN);
-            manager.uciHistory.add(move.toUCI());
-            manager.getBoard().getEvalBoard().addHistory(parsedMoveString, currentFEN);
-            manager.getBoard().getContentPane().paintComponents(manager.getBoard().getContentPane().getGraphics());
-            if (!manager.endGame()) {
-                manager.recursiveMoves();
+                    manager.history.add(currentFEN);
+                    manager.uciHistory.add(move.toUCI());
+                    manager.getBoard().getEvalBoard().addHistory(parsedMoveString, currentFEN);
+                    manager.getBoard().getContentPane().paintComponents(manager.getBoard().getContentPane().getGraphics());
+                    Main.evaluation.moveMade(currentFEN);
+                    manager.recursiveMoves();
+                });
             }
         });
+
         /*}*/
     }
 

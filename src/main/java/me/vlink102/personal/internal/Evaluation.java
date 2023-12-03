@@ -20,7 +20,6 @@ public class Evaluation {
 
     public Evaluation(GameManager manager) {
         this.manager = manager;
-        this.timer = new Timer();
         this.buffer = new StringBuilder();
         this.IS_RUNNING = true;
     }
@@ -84,44 +83,22 @@ public class Evaluation {
 
     public void getBestMoveOutput() {
         buffer = new StringBuilder();
+        boolean whiteToMove = manager.getGamePlay().isWhiteToMove();
+        String currentFEN = manager.generateCurrentFEN();
         try {
+            float eval = 0.0f;
+            int c = 0;
+            StringBuilder builder = new StringBuilder();
             while (IS_RUNNING) {
-                String text = processReader.readLine();
-                System.out.println(text);
-                buffer.append(text).append("\n");
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
+                String textLine = processReader.readLine();
+                if (c >= 10) {
+                    String[] texts = builder.toString().split("\n");
+                    for (String text : texts) {
+                        if (text.startsWith("bestmove ")) return;
 
-    private Timer timer;
-
-    public void moveMade(String fen) {
-        timer.cancel();
-        timer.purge();
-        timer = new Timer();
-        sendCommand("stop");
-        EventQueue.invokeLater(() -> updateEvaluation(fen));
-    }
-
-
-    public void updateEvaluation(String fen) {
-        sendCommand("ucinewgame");
-        sendCommand("position fen " + fen);
-        sendCommand("go infinite");
-        CompletableFuture.runAsync(this::getBestMoveOutput);
-        try {
-            timer.scheduleAtFixedRate(new TimerTask() {
-                @Override
-                public void run() {
-                    float eval = 0.0f;
-                    int mateNo = 0;
-                    String[] engineDump = buffer.toString().split("\n");
-                    for (String text : engineDump) {
                         if (text.startsWith("info depth ")) {
-                            //int depth = Integer.parseInt(text.split(" ")[2]);
-                            //if (depth <= 25) continue;
+                            int depth = Integer.parseInt(text.split(" ")[2]);
+                            if (depth <= 15) continue;
                             if (text.contains("cp")) {
                                 String scoreCp = text.split("score cp ")[1];
                                 String truncatedScoreCp = scoreCp.split(" nodes")[0];
@@ -135,33 +112,60 @@ public class Evaluation {
                                         System.out.println("SECOND ORDER=" + text + "\n     " + upperboundNodesScore);
                                     }
                                 }
-                            } else {
-                                if (text.contains("score")) {
-                                    if (text.split("score ")[1].contains("mate")) {
-                                        String dumpMate = text.split(" score mate")[1].split(" nodes")[0];
-                                        if (dumpMate.matches("^-?[0-9]\\d*(\\.\\d+)?$")) {
-                                            mateNo = Integer.parseInt(dumpMate);
-                                        } else {
-                                            System.out.println("THIRD ORDER=" + text);
-                                        }
-                                    }
+                            }/* else {
+                        if (text.contains("score")) {
+                            if (text.split("score ")[1].contains("mate")) {
+                                String dumpMate = text.split("score mate ")[1].split(" nodes")[0];
+                                if (dumpMate.matches("^-?[0-9]\\d*(\\.\\d+)?$")) {
+                                    mateNo = Integer.parseInt(dumpMate);
+                                } else {
+                                    System.out.println("THIRD ORDER=" + text);
                                 }
                             }
                         }
-                    }
-                    float finalEval = eval;
-                    int finalMateNo = mateNo;
 
-                    if (!manager.getGamePlay().isWhiteToMove()) {
-                        finalEval = -finalEval;
+                    }*/
+
+                        }
+                    }
+                    double finalEval;
+                    if (whiteToMove) {
+                        finalEval = eval;
+                    } else {
+                        finalEval = -eval;
                     }
 
-                    Integer dtzam = finalMateNo == 0 ? null : finalMateNo;
-                    manager.getBoard().getEvalBoard().updateEval(finalEval / 100f, dtzam, dtzam);
+                    manager.getBoard().getEvalBoard().updateEval(finalEval / 100, currentFEN);
+                    builder = new StringBuilder();
                 }
-            }, 0, 1000);
+                builder.append(textLine).append("\n");
+                c++;
+
+
+
+
+
+            }
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    public void moveMade(String fen) {
+        sendCommand("stop");
+
+        EventQueue.invokeLater(() -> {
+            //System.out.println(StockFish.getWinningChances(manager.getBoard().getEvalBoard().getLastEvaluation());
+
+            updateEvaluation(fen);
+        });
+    }
+
+
+    public void updateEvaluation(String fen) {
+        sendCommand("ucinewgame");
+        sendCommand("position fen " + fen);
+        sendCommand("go infinite");
+        CompletableFuture.runAsync(this::getBestMoveOutput);
     }
 }

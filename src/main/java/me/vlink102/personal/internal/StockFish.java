@@ -1,6 +1,5 @@
 package me.vlink102.personal.internal;
 
-import chariot.model.Pgn;
 import me.vlink102.personal.Main;
 import me.vlink102.personal.game.GameManager;
 import me.vlink102.personal.game.SimpleMove;
@@ -9,7 +8,6 @@ import org.apache.commons.io.IOUtils;
 import java.awt.*;
 import java.io.*;
 import java.lang.reflect.InvocationTargetException;
-import java.util.Arrays;
 import java.util.StringJoiner;
 import java.util.concurrent.CompletableFuture;
 
@@ -91,7 +89,7 @@ public class StockFish {
         return buffer.toString();
     }
 
-    public String getBestMoveOutput() {
+    public void getBestMoveOutput() {
         StringBuilder buffer = new StringBuilder();
         try {
             while (true) {
@@ -99,13 +97,40 @@ public class StockFish {
                 //System.out.println(text);
                 buffer.append(text).append("\n");
                 if (text != null && text.startsWith("bestmove ")) {
+                    String data = buffer.toString();
+                    String newData = data.split("bestmove ")[1];
+                    if (newData.contains(" ")) {
+                        newData = newData.split(" ")[0];
+                    }
+                    if (newData.equals("(none)")) return;
+                    SimpleMove parsedMove = SimpleMove.parseStockFishMove(manager.getInternalBoard(), newData);
+                    String parsedMoveString = parsedMove.deepToString(manager, manager.getInternalBoard());
+
+                    manager.movePiece(manager.getInternalBoard(), parsedMove);
+                    String currentFEN = manager.generateCurrentFEN();
+
+                    //Float eval = getEvaluation(currentFEN);
+
+                    try {
+                        EventQueue.invokeAndWait(() -> {
+                            manager.refreshBoard(ChessBoard.WHITE_VIEW);
+                            manager.history.add(currentFEN);
+                            manager.getBoard().getEvalBoard().addHistory(parsedMoveString, currentFEN);
+                            manager.uciHistory.add(parsedMove.toUCI());
+                            manager.getBoard().getContentPane().paintComponents(manager.getBoard().getContentPane().getGraphics());
+                            Main.evaluation.moveMade(currentFEN);
+                            manager.recursiveMoves();
+                        });
+                    } catch (InterruptedException | InvocationTargetException e) {
+                        throw new RuntimeException(e);
+                    }
                     break;
                 }
+
             }
         } catch (Exception e) {
             e.printStackTrace();
         }
-        return buffer.toString();
     }
 
     public String generateMoves() {
@@ -170,7 +195,7 @@ public class StockFish {
     }
 
     public static double getWinningChances(Double advantage) {
-        return (50 + 50 * (2 / (1 + Math.exp(-0.004 * Math.abs(advantage))) - 1)) / 100d;
+        return (50 + 50 * (2 / (1 + Math.exp(-0.004 * advantage)) - 1)) / 100d;
     }
 
     public float getEvaluation(String fen) {
@@ -191,10 +216,11 @@ public class StockFish {
     public void getBestMove(String fen) {
         sendCommand("ucinewgame");
         sendCommand("position fen " + fen);
-        sendCommand("go movetime " + ChessBoard.COMPUTER_WAIT_TIME_MS);
-        CompletableFuture<String> move = CompletableFuture.supplyAsync(this::getBestMoveOutput);
+        sendCommand("go depth 245 movetime " + ChessBoard.COMPUTER_WAIT_TIME_MS);
+        CompletableFuture.runAsync(this::getBestMoveOutput);
 
-        move.thenAccept((data) -> {
+
+        //move.thenAccept((data) -> {
             /*
             boolean isWhiteTurn = manager.getGamePlay().isWhiteToMove();
             EventQueue.invokeLater(() -> {
@@ -250,35 +276,8 @@ public class StockFish {
             });
              */
 
-            String newData = data.split("bestmove ")[1];
-            if (newData.contains(" ")) {
-                newData = newData.split(" ")[0];
-            }
-            SimpleMove parsedMove = SimpleMove.parseStockFishMove(manager.getInternalBoard(), newData);
-            String parsedMoveString = parsedMove.deepToString(manager, manager.getInternalBoard());
 
-            manager.movePiece(manager.getInternalBoard(), parsedMove);
-            String currentFEN = manager.generateCurrentFEN();
-
-            Main.evaluation.moveMade(currentFEN);
-            //Float eval = getEvaluation(currentFEN);
-
-            try {
-                EventQueue.invokeAndWait(() -> {
-                    //manager.getBoard().getEvalBoard().updateEval(eval, null, null);
-                    manager.refreshBoard(ChessBoard.WHITE_VIEW);
-                    manager.history.add(currentFEN);
-                    manager.getBoard().getEvalBoard().addHistory(parsedMoveString, currentFEN);
-                    manager.uciHistory.add(parsedMove.toUCI());
-                    manager.getBoard().getContentPane().paintComponents(manager.getBoard().getContentPane().getGraphics());
-                    if (!manager.endGame()) {
-                        manager.recursiveMoves();
-                    }
-                });
-            } catch (InterruptedException | InvocationTargetException e) {
-                throw new RuntimeException(e);
-            }
-        });
+        //});
     }
 
     public void stopEngine() {

@@ -9,6 +9,7 @@ import me.vlink102.personal.game.pieces.*;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import javax.swing.event.ChangeListener;
+import javax.swing.plaf.basic.BasicProgressBarUI;
 import java.awt.*;
 import java.awt.datatransfer.Clipboard;
 import java.awt.datatransfer.DataFlavor;
@@ -17,8 +18,8 @@ import java.awt.datatransfer.UnsupportedFlavorException;
 import java.awt.event.*;
 import java.io.IOException;
 import java.util.*;
-import java.util.List;
 import java.util.Timer;
+import java.util.concurrent.CompletableFuture;
 
 public class ChessBoard extends JFrame implements MouseListener, MouseMotionListener {
     JLayeredPane layeredPane;
@@ -30,7 +31,7 @@ public class ChessBoard extends JFrame implements MouseListener, MouseMotionList
 
     private final int pieceSize;
     public static boolean WHITE_VIEW = true;
-    public static int COMPUTER_WAIT_TIME_MS = 3000;
+    public static int COMPUTER_WAIT_TIME_MS;
 
     public static boolean IGNORE_RULES = false;
 
@@ -48,29 +49,46 @@ public class ChessBoard extends JFrame implements MouseListener, MouseMotionList
         return pieceSize;
     }
 
-    public static class EvalBoard extends JFrame {
+    public class EvalBoard extends JFrame {
 
         private final JLabel evalLabel;
         private final JLabel dtz;
         private final JLabel dtm;
         private final JPanel historyPanel;
+        private final JProgressBar evalBar;
+        private final JProgressBar winChanceBar;
 
-        private final List<Double> positionalChances;
+        private final SwingWorkerRealTime swingWorkerRealTime;
 
-        public Double getLastEvaluation() {
-            return positionalChances.get(positionalChances.size() - 1);
-        }
+        private final JScrollPane pane;
 
-        public List<Double> getPositionalChances() {
+        private final HashMap<String, Double> positionalChances;
+
+        public HashMap<String, Double> getPositionalChances() {
             return positionalChances;
         }
 
-        public void updateEval(Float eval, Integer dtz, Integer dtm) {
+        public void addEvalHistory(double data) {
+            swingWorkerRealTime.getMySwingWorker().addData(data);
+        }
+
+        public Double getEvaluation(String fen) {
+            return positionalChances.get(fen);
+        }
+
+        public Double getLastEvaluation(String fen) {
+            return positionalChances.get(fen);
+        }
+
+        public void updateEval(Double eval, String fen) {
             if (eval == null) {
-                setEval();
-            } else if (eval != -1f) {
-                setEval(eval);
+                setEval(fen);
+            } else if (eval != -1d) {
+                setEval(eval, fen);
             }
+        }
+
+        public void updateEvalDTZDTM(Integer dtz, Integer dtm) {
             if (dtz != null) {
                 setDtz(dtz);
             } else {
@@ -83,14 +101,22 @@ public class ChessBoard extends JFrame implements MouseListener, MouseMotionList
             }
         }
 
-        private void setEval() {
+        private void setEval(String fen) {
             evalLabel.setText("Evaluation: ±0.00");
-            positionalChances.add(StockFish.getWinningChances(0d));
+            double val = StockFish.getWinningChances(0d);
+            positionalChances.put(fen, val);
+            evalBar.setValue((evalBar.getMinimum() + evalBar.getMaximum()) / 2);
+            winChanceBar.setValue((int) (val * 100));
+            addEvalHistory(0);
         }
 
-        private void setEval(float eval) {
-            evalLabel.setText("Evaluation: " + (eval > 0.0f ? "+" : (eval == 0.0f ? "±" : "")) + eval);
-            positionalChances.add(StockFish.getWinningChances(eval * 100d));
+        private void setEval(Double eval, String fen) {
+            evalLabel.setText("Evaluation: " + (eval > 0 ? "+" : (eval == 0 ? "±" : "-")) + Math.abs(eval));
+            double val = StockFish.getWinningChances(eval * 100);
+            positionalChances.put(fen, val);
+            evalBar.setValue(((evalBar.getMinimum() + evalBar.getMaximum()) / 2) + ((int) (eval * 10)));
+            winChanceBar.setValue((int) (val * 100));
+            addEvalHistory(eval);
         }
         private void setDtz(int x) {
             dtz.setText("DTZ: " + x + "  ");
@@ -129,6 +155,9 @@ public class ChessBoard extends JFrame implements MouseListener, MouseMotionList
             panel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
             historyPanel.add(panel);
+            //JScrollBar vertical = pane.getVerticalScrollBar();
+            //vertical.setValue(vertical.getMaximum());
+
             paintComponents(getGraphics());
         }
 
@@ -147,14 +176,14 @@ public class ChessBoard extends JFrame implements MouseListener, MouseMotionList
                     if (Main.stockFish == null) {
                         evalLabel.setText("[Evaluation disabled]");
                     } else {
-                        setEval();
+                        setEval(manager.generateCurrentFEN());
                     }
                 }
             }, 1000);
         }
 
         public EvalBoard(int size) {
-            Dimension dimension = new Dimension(size / 2, size);
+            Dimension dimension = new Dimension((int) (size / 1.5), size);
             this.setPreferredSize(dimension);
             this.setTitle("Evaluation");
             try {
@@ -163,7 +192,7 @@ public class ChessBoard extends JFrame implements MouseListener, MouseMotionList
                 throw new RuntimeException(e);
             }
 
-            this.positionalChances = new ArrayList<>();
+            this.positionalChances = new HashMap<>();
 
             JPanel panel = new JPanel();
             panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
@@ -186,7 +215,7 @@ public class ChessBoard extends JFrame implements MouseListener, MouseMotionList
                     if (Main.stockFish == null) {
                         evalLabel.setText("[Evaluation disabled]");
                     } else {
-                        setEval();
+                        setEval(manager.generateCurrentFEN());
                     }
                 }
             }, 1000);
@@ -198,9 +227,38 @@ public class ChessBoard extends JFrame implements MouseListener, MouseMotionList
             this.historyPanel = new JPanel();
             historyPanel.setLayout(new BoxLayout(historyPanel, BoxLayout.Y_AXIS));
             historyPanel.setBorder(new EmptyBorder(0, 3, 3, 3));
-            JScrollPane pane = new JScrollPane(historyPanel, ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED, ScrollPaneConstants.HORIZONTAL_SCROLLBAR_AS_NEEDED);
-            pane.setPreferredSize(new Dimension(size / 2, size / 2));
+            pane = new JScrollPane(historyPanel, ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED, ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
+            pane.setPreferredSize(new Dimension(size, size / 2));
+            panel.add(new JSeparator());
             panel.add(pane);
+
+            evalBar = new JProgressBar();
+            evalBar.setPreferredSize(new Dimension(-1, 10));
+            evalBar.setMinimum(0);
+            evalBar.setMaximum(200);
+            evalBar.setValue((evalBar.getMinimum() + evalBar.getMaximum()) / 2);
+            evalBar.setOrientation(SwingConstants.HORIZONTAL);
+            evalBar.setForeground(Color.lightGray);
+            evalBar.setBackground(Color.darkGray);
+            evalBar.setUI(new BasicProgressBarUI());
+
+            winChanceBar = new JProgressBar();
+            winChanceBar.setPreferredSize(new Dimension(-1, 10));
+            winChanceBar.setMinimum(0);
+            winChanceBar.setMaximum(100);
+            winChanceBar.setValue((winChanceBar.getMinimum() + winChanceBar.getMaximum()) / 2);
+            winChanceBar.setOrientation(SwingConstants.HORIZONTAL);
+            winChanceBar.setForeground(Color.lightGray);
+            winChanceBar.setBackground(Color.darkGray);
+            winChanceBar.setUI(new BasicProgressBarUI());
+
+            swingWorkerRealTime = new SwingWorkerRealTime();
+            CompletableFuture.runAsync(swingWorkerRealTime::go);
+
+            panel.add(new JSeparator());
+            panel.add(winChanceBar);
+            panel.add(new JSeparator());
+            panel.add(evalBar);
 
             this.getContentPane().add(panel);
 
@@ -208,6 +266,7 @@ public class ChessBoard extends JFrame implements MouseListener, MouseMotionList
             this.setResizable(false);
             this.pack();
             this.setLocationRelativeTo(null);
+            this.setLocation(0,0);
             this.setVisible(true);
         }
     }
@@ -317,7 +376,9 @@ public class ChessBoard extends JFrame implements MouseListener, MouseMotionList
         return evalBoard;
     }
 
-    public ChessBoard(int size) {
+    public ChessBoard(int size, String fen) {
+        WHITE_VIEW = Main.WHITE_TO_MOVE;
+        COMPUTER_WAIT_TIME_MS = Main.ENGINE_THINKING_TIME;
         this.pieceSize = size / 8;
         Dimension boardSize = new Dimension(size, size);
 
@@ -497,7 +558,7 @@ public class ChessBoard extends JFrame implements MouseListener, MouseMotionList
         this.setLocationRelativeTo(null);
         this.setVisible(true);
 
-        this.manager = new GameManager(this);
+        this.manager = new GameManager(this, fen);
         //r3k2r/pbppqpb1/1pn3p1/7p/1N2p1n1/1PP4N/PB1P1PPP/2QRKR2 w kq - 0 1
         this.evalBoard = new EvalBoard(size);
     }
@@ -601,7 +662,6 @@ public class ChessBoard extends JFrame implements MouseListener, MouseMotionList
             manager.playerMovePiece(from, to, manager.getInternalBoard(), getFromInteger(0 /* TODO Piece Promotion Panel */, piece.isWhite(), to));
         } else {
             manager.playerMovePiece(from, to, manager.getInternalBoard());
-            manager.endGame();
         }
 
         released = null;

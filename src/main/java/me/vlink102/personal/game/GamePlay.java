@@ -5,8 +5,12 @@ import me.vlink102.personal.game.pieces.Pawn;
 import me.vlink102.personal.game.pieces.Rook;
 import me.vlink102.personal.internal.ChessBoard;
 
+import java.awt.*;
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.atomic.AtomicBoolean;
+
 public class GamePlay {
-    private boolean whiteToMove;
+    private volatile boolean whiteToMove;
     private int halfMoveCounter;
     private int fullMoveCounter;
     private int fiftyMoveRule;

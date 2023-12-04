@@ -68,7 +68,7 @@ public class SyzygyTableBases {
      * {@link StockFish#getBestMove(String)}
      */
     public void computerMove(String FEN) throws InterruptedException, InvocationTargetException {
-
+        if (manager.GAME_OVER) return;
         /*
         JSONObject result;
         try {
@@ -90,30 +90,29 @@ public class SyzygyTableBases {
             }, 3600);
         } else {
             */
-        CompletableFuture.runAsync(new Runnable() {
-            @Override
-            public void run() {
-                TablebaseResult result = client.tablebase().standard(FEN).get();
-                TablebaseResult.Move moveResult = result.moves().get(0);
-                SimpleMove move = SimpleMove.parseStockFishMove(manager.getInternalBoard(), moveResult.uci());
-                String parsedMoveString = move.deepToString(manager, manager.getInternalBoard());
-                manager.movePiece(manager.getInternalBoard(), move);
-                String currentFEN = manager.generateCurrentFEN();
+        CompletableFuture.runAsync(() -> {
+            if (manager.GAME_OVER) return;
+            TablebaseResult result = client.tablebase().standard(FEN).get();
+            TablebaseResult.Move moveResult = result.moves().get(0);
+            SimpleMove move = SimpleMove.parseStockFishMove(manager.getInternalBoard(), moveResult.uci());
+            assert move != null;
+            String parsedMoveString = move.deepToString(manager, manager.getInternalBoard());
+            manager.movePiece(manager.getInternalBoard(), move);
+            String currentFEN = manager.generateCurrentFEN();
 
-                //Float eval = Main.stockFish.getEvaluation(currentFEN);
-                //printTableBaseInfo(result);
-                EventQueue.invokeLater(() -> {
-                    manager.refreshBoard(ChessBoard.WHITE_VIEW);
-                    manager.getBoard().getEvalBoard().updateEvalDTZDTM( result.dtz(), result.dtm());
+            //Float eval = Main.stockFish.getEvaluation(currentFEN);
+            //printTableBaseInfo(result);
+            EventQueue.invokeLater(() -> {
+                manager.refreshBoard(ChessBoard.WHITE_VIEW);
+                manager.getBoard().getEvalBoard().updateEvalDTZDTM( result.dtz(), result.dtm());
 
-                    manager.history.add(currentFEN);
-                    manager.uciHistory.add(move.toUCI());
-                    manager.getBoard().getEvalBoard().addHistory(parsedMoveString, currentFEN);
-                    manager.getBoard().getContentPane().paintComponents(manager.getBoard().getContentPane().getGraphics());
-                    Main.evaluation.moveMade(currentFEN);
-                    manager.recursiveMoves();
-                });
-            }
+                manager.history.add(currentFEN);
+                manager.uciHistory.add(move.toUCI());
+                manager.getBoard().getEvalBoard().addHistory(parsedMoveString, currentFEN);
+                manager.getBoard().getContentPane().paintComponents(manager.getBoard().getContentPane().getGraphics());
+                Main.evaluation.moveMade(currentFEN);
+                manager.recursiveMoves();
+            });
         });
 
         /*}*/

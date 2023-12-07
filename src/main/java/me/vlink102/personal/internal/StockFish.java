@@ -12,22 +12,18 @@ import java.util.StringJoiner;
 import java.util.concurrent.CompletableFuture;
 
 public class StockFish {
+    public static final String PREFIX = "stream2file";
+    public static final String SUFFIX = ".tmp";
+    private static final String PATH = "C:\\Users\\Ethan\\Desktop\\stockfish\\stockfish\\stockfish-windows-x86-64-avx2.exe";
+    private final GameManager manager;
     private Process engineProcess;
     private BufferedReader processReader;
     private OutputStreamWriter processWriter;
-
-    private final GameManager manager;
-
     public StockFish(GameManager manager) {
         this.manager = manager;
     }
 
-    private static final String PATH = "C:\\Users\\Ethan\\Desktop\\stockfish\\stockfish\\stockfish-windows-x86-64-avx2.exe";
-
-    public static final String PREFIX = "stream2file";
-    public static final String SUFFIX = ".tmp";
-
-    public static File stream2file (InputStream in) throws IOException {
+    public static File stream2file(InputStream in) throws IOException {
         final File tempFile = File.createTempFile(PREFIX, SUFFIX);
         tempFile.deleteOnExit();
         try (FileOutputStream out = new FileOutputStream(tempFile)) {
@@ -36,6 +32,9 @@ public class StockFish {
         return tempFile;
     }
 
+    public static double getWinningChances(Double advantage) {
+        return (50 + 50 * (2 / (1 + Math.exp(-0.004 * advantage)) - 1)) / 100d;
+    }
 
     public boolean startEngine() {
         try {
@@ -141,34 +140,6 @@ public class StockFish {
         return (joiner.toString().equalsIgnoreCase("") ? "" : " " + joiner);
     }
 
-    enum MoveClassification {
-        BOOK(-999999, -999999),
-        BRILLIANT(-999999, -999999),
-        GREAT(-999999, -999999),
-        BEST(0.00f, 0.00f),
-        EXCELLENT(0.00f, 0.02f),
-        GOOD(0.02f, 0.05f),
-        INACCURACY(0.05f, 0.1f),
-        MISTAKE(0.1f, 0.2f),
-        BLUNDER(0.2f, 1f);
-
-        private final float lowerLimit;
-        private final float upperLimit;
-
-        MoveClassification(float lowerLimit, float upperLimit) {
-            this.lowerLimit = lowerLimit;
-            this.upperLimit = upperLimit;
-        }
-
-        public float getUpperLimit() {
-            return upperLimit;
-        }
-
-        public float getLowerLimit() {
-            return lowerLimit;
-        }
-    }
-
     public MoveClassification getClassification(boolean white, double prevC, double nextC) {
         double diff = white ? nextC - prevC : prevC - nextC;
         if (diff > 0) {
@@ -194,10 +165,6 @@ public class StockFish {
         throw new IllegalArgumentException("Move did not have a correct win chance difference " + diff);
     }
 
-    public static double getWinningChances(Double advantage) {
-        return (50 + 50 * (2 / (1 + Math.exp(-0.004 * advantage)) - 1)) / 100d;
-    }
-
     public float getEvaluation(String fen) {
         sendCommand("ucinewgame");
         sendCommand("position fen " + fen);
@@ -211,7 +178,6 @@ public class StockFish {
         result = result.replaceAll("\\+", "");
         return Float.parseFloat(result);
     }
-
 
     public void getBestMove(String fen) {
         sendCommand("ucinewgame");
@@ -303,6 +269,34 @@ public class StockFish {
 
         for (int i = 1; i < 18; i++) {
             System.out.println(rows[i]);
+        }
+    }
+
+    enum MoveClassification {
+        BOOK(-999999, -999999),
+        BRILLIANT(-999999, -999999),
+        GREAT(-999999, -999999),
+        BEST(0.00f, 0.00f),
+        EXCELLENT(0.00f, 0.02f),
+        GOOD(0.02f, 0.05f),
+        INACCURACY(0.05f, 0.1f),
+        MISTAKE(0.1f, 0.2f),
+        BLUNDER(0.2f, 1f);
+
+        private final float lowerLimit;
+        private final float upperLimit;
+
+        MoveClassification(float lowerLimit, float upperLimit) {
+            this.lowerLimit = lowerLimit;
+            this.upperLimit = upperLimit;
+        }
+
+        public float getUpperLimit() {
+            return upperLimit;
+        }
+
+        public float getLowerLimit() {
+            return lowerLimit;
         }
     }
 

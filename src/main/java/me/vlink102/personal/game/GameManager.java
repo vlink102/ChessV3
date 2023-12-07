@@ -16,18 +16,16 @@ import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
 
 public class GameManager {
-    private final ChessBoard board;
+    public static String startingFEN;
     public final Random random;
     public final List<String> history;
     public final List<String> uciHistory;
+    private final ChessBoard board;
+    public volatile boolean GAME_OVER;
     private GamePlay gamePlay;
     private PieceWrapper[][] internalBoard;
     private Tile enPassant;
     private Tile enPassantPiece;
-
-    public volatile boolean GAME_OVER;
-
-    public static String startingFEN;
 
     public GameManager(ChessBoard board, String fen) {
         GAME_OVER = false;
@@ -99,6 +97,70 @@ public class GameManager {
         builder.append(fullMoveCount);
 
         return builder.toString();
+    }
+
+    public static boolean validateFEN(String FEN, int boardSize) {
+        String[] sections = FEN.split(" ");
+        if (sections.length != 6) {
+            return false;
+        }
+        if (sections[0].split("/").length != boardSize) {
+            return false;
+        }
+        if (!sections[1].equalsIgnoreCase("w") && !sections[1].equalsIgnoreCase("b")) {
+            return false;
+        }
+        if (!(Integer.parseInt(sections[4]) / 2 == Integer.parseInt(sections[5]) - 1)) {
+            return false;
+        }
+        if (!(sections[0].contains("k") && sections[0].contains("K"))) {
+            return false;
+        }
+        if (!Tile.isValidTile(boardSize, sections[3]) && !sections[3].equalsIgnoreCase("-")) {
+            return false;
+        }
+        return validateBoard(sections[0], boardSize);
+    }
+
+    public static boolean validateBoard(String board, int boardSize) {
+        for (String s : board.split("/")) {
+            if (!isValidFENRow(s, boardSize)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    @SuppressWarnings("BooleanMethodIsAlwaysInverted")
+    public static boolean isValidFENRow(String FENRow, int boardSize) {
+        int count = 0;
+        String[] chars = FENRow.split("");
+        for (int i = 0; i < chars.length; i++) {
+            String s = chars[i];
+            if (s.equals("(")) {
+                String number = "";
+                for (int j = 1; j < chars.length; j++) {
+                    if (Character.isDigit(chars[j + i].toCharArray()[0])) {
+                        number += Integer.parseInt(chars[j + i]);
+                    } else {
+                        if (chars[j + i].equals(")")) {
+                            i += j;
+                        }
+                        break;
+                    }
+                }
+                count += Integer.parseInt(number);
+            } else {
+                if (s.matches("[RNBQKPACESHIMYUrnbqkpaceshimyu]")) {
+                    count++;
+                } else if (s.matches("\\d")) {
+                    count += Integer.parseInt(s);
+                } else {
+                    return false;
+                }
+            }
+        }
+        return count == boardSize;
     }
 
     public void reset(String fen) {
@@ -352,7 +414,6 @@ public class GameManager {
             }
         }
     }
-
 
     public void randomMove(PieceWrapper[][] board) {
         if (GAME_OVER) return;
@@ -785,70 +846,6 @@ public class GameManager {
             return false;
         }
         return true;
-    }
-
-    public static boolean validateFEN(String FEN, int boardSize) {
-        String[] sections = FEN.split(" ");
-        if (sections.length != 6) {
-            return false;
-        }
-        if (sections[0].split("/").length != boardSize) {
-            return false;
-        }
-        if (!sections[1].equalsIgnoreCase("w") && !sections[1].equalsIgnoreCase("b")) {
-            return false;
-        }
-        if (!(Integer.parseInt(sections[4]) / 2 == Integer.parseInt(sections[5]) - 1)) {
-            return false;
-        }
-        if (!(sections[0].contains("k") && sections[0].contains("K"))) {
-            return false;
-        }
-        if (!Tile.isValidTile(boardSize, sections[3]) && !sections[3].equalsIgnoreCase("-")) {
-            return false;
-        }
-        return validateBoard(sections[0], boardSize);
-    }
-
-    public static boolean validateBoard(String board, int boardSize) {
-        for (String s : board.split("/")) {
-            if (!isValidFENRow(s, boardSize)) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    @SuppressWarnings("BooleanMethodIsAlwaysInverted")
-    public static boolean isValidFENRow(String FENRow, int boardSize) {
-        int count = 0;
-        String[] chars = FENRow.split("");
-        for (int i = 0; i < chars.length; i++) {
-            String s = chars[i];
-            if (s.equals("(")) {
-                String number = "";
-                for (int j = 1; j < chars.length; j++) {
-                    if (Character.isDigit(chars[j + i].toCharArray()[0])) {
-                        number += Integer.parseInt(chars[j + i]);
-                    } else {
-                        if (chars[j + i].equals(")")) {
-                            i += j;
-                        }
-                        break;
-                    }
-                }
-                count += Integer.parseInt(number);
-            } else {
-                if (s.matches("[RNBQKPACESHIMYUrnbqkpaceshimyu]")) {
-                    count++;
-                } else if (s.matches("\\d")) {
-                    count += Integer.parseInt(s);
-                } else {
-                    return false;
-                }
-            }
-        }
-        return count == boardSize;
     }
 
     public void cleanUpPawnPromotion(PieceWrapper[][] board, SimpleMove move) {

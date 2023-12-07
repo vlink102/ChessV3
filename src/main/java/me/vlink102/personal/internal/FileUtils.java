@@ -14,10 +14,6 @@ import java.util.Objects;
 public class FileUtils {
     private static HashMap<PieceEnum, ImageIcon> PIECES = null;
 
-    public static HashMap<PieceEnum, ImageIcon> getPieces() {
-        return PIECES;
-    }
-
     public FileUtils(int size) {
         PIECES = new HashMap<>();
         try {
@@ -25,6 +21,14 @@ public class FileUtils {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    public static HashMap<PieceEnum, ImageIcon> getPieces() {
+        return PIECES;
+    }
+
+    public static File getStockFishDir() throws URISyntaxException {
+        return new File(Objects.requireNonNull(Main.class.getResource("/stockfish/stockfish-windows-x86-64-avx2.exe")).toURI()).getParentFile();
     }
 
     private void loadPieces(int size) throws IOException {
@@ -35,9 +39,5 @@ public class FileUtils {
 
     public Image getImage(String name) throws IOException {
         return ImageIO.read(Objects.requireNonNull(Main.class.getResource("/" + name + ".png")));
-    }
-
-    public static File getStockFishDir() throws URISyntaxException {
-        return new File(Objects.requireNonNull(Main.class.getResource("/stockfish/stockfish-windows-x86-64-avx2.exe")).toURI()).getParentFile();
     }
 }

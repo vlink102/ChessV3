@@ -41,18 +41,18 @@ public class SwingWorker {
         return mySwingWorker;
     }
 
-    public void go() {
+    public void go(ChessBoard board) {
 
         // Create Chart
         chart = new XYChartBuilder().xAxisTitle("Time").yAxisTitle("Evaluation").title("NNUE Evaluation Display").build();
-        XYSeries series = chart.addSeries("Evaluation", new double[] { 0 }, new double[] { 0 });
+        XYSeries series = chart.addSeries("Evaluation", new double[]{0}, new double[]{0});
         series.setXYSeriesRenderStyle(XYSeries.XYSeriesRenderStyle.Line);
         series.setSmooth(true);
         series.setLineColor(Color.green);
         series.setMarker(SeriesMarkers.CROSS);
         series.setMarkerColor(Color.RED);
 
-        XYSeries newSeries = chart.addSeries("WinChances", new double[] { 0 }, new double[] { 0 });
+        XYSeries newSeries = chart.addSeries("WinChances", new double[]{0}, new double[]{0});
         newSeries.setXYSeriesRenderStyle(XYSeries.XYSeriesRenderStyle.Step);
         newSeries.setLineColor(Color.yellow.darker());
         chart.getStyler().setChartBackgroundColor(Color.darkGray);
@@ -65,7 +65,7 @@ public class SwingWorker {
         chart.getStyler().setPlotGridLinesColor(Color.gray);
         chart.getStyler().setZoomEnabled(true);
         chart.getStyler().setZoomResetByDoubleClick(true);
-        chart.getStyler().setZoomSelectionColor(new Color(128,128,128,128));
+        chart.getStyler().setZoomSelectionColor(new Color(128, 128, 128, 128));
         chart.getStyler().setZoomResetByButton(true);
         // Show it
         sw = new SwingWrapper<>(chart);
@@ -85,6 +85,8 @@ public class SwingWorker {
 
         mySwingWorker = new MySwingWorker();
         mySwingWorker.execute();
+
+        EventQueue.invokeLater(() -> board.setAlwaysOnTop(false));
     }
 
     public class MySwingWorker extends javax.swing.SwingWorker<Boolean, double[]> {

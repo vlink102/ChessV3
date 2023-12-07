@@ -5,9 +5,9 @@ import me.vlink102.personal.internal.PieceEnum;
 public abstract class PieceWrapper {
     private final PieceEnum type;
     private final boolean white;
-    private int moves;
     private final GameManager.Tile startingSquare;
     private final RookSide side;
+    private int moves;
 
     public PieceWrapper(PieceEnum type, boolean white, final GameManager.Tile startingSquare, RookSide... rookSides) {
         this.type = type;
@@ -45,16 +45,17 @@ public abstract class PieceWrapper {
         return side;
     }
 
-    public enum RookSide {
-        KINGSIDE,
-        QUEENSIDE
-    }
-
     public boolean isDiagonal(GameManager.Tile from, GameManager.Tile to) {
         return Math.abs(from.column() - to.column()) == Math.abs(from.row() - to.row());
     }
+
     public boolean isStraight(GameManager.Tile from, GameManager.Tile to) {
         return (from.column() == to.column() && from.row() != to.row()) || (from.column() != to.column() && from.row() == to.row());
+    }
+
+    public enum RookSide {
+        KINGSIDE,
+        QUEENSIDE
     }
 }
 

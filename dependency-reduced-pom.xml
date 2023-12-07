@@ -3,7 +3,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>me.vlink102.personal</groupId>
   <artifactId>ChessV3</artifactId>
-  <version>v6.9.8</version>
+  <version>v6.9.9</version>
   <build>
     <plugins>
       <plugin>

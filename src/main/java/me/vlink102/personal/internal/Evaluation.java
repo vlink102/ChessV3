@@ -6,26 +6,21 @@ import org.apache.commons.io.IOUtils;
 
 import java.awt.*;
 import java.io.*;
-import java.lang.reflect.InvocationTargetException;
-import java.util.Timer;
-import java.util.TimerTask;
 import java.util.concurrent.CompletableFuture;
 
 public class Evaluation {
+    public static final String PREFIX = "stream2file";
+    public static final String SUFFIX = ".tmp";
+    private final GameManager manager;
     private Process engineProcess;
     private BufferedReader processReader;
     private OutputStreamWriter processWriter;
-
-    private final GameManager manager;
+    private boolean IS_RUNNING;
 
     public Evaluation(GameManager manager) {
         this.manager = manager;
-        this.buffer = new StringBuilder();
         this.IS_RUNNING = true;
     }
-
-    public static final String PREFIX = "stream2file";
-    public static final String SUFFIX = ".tmp";
 
     public static File stream2file(InputStream in) throws IOException {
         final File tempFile = File.createTempFile(PREFIX, SUFFIX);
@@ -35,7 +30,6 @@ public class Evaluation {
         }
         return tempFile;
     }
-
 
     public boolean startEngine() {
         try {
@@ -78,11 +72,7 @@ public class Evaluation {
         }
     }
 
-    private StringBuilder buffer;
-    private volatile boolean IS_RUNNING;
-
     public void getBestMoveOutput() {
-        buffer = new StringBuilder();
         boolean whiteToMove = manager.getGamePlay().isWhiteToMove();
         String currentFEN = manager.generateCurrentFEN();
         try {
@@ -140,9 +130,6 @@ public class Evaluation {
                 }
                 builder.append(textLine).append("\n");
                 c++;
-
-
-
 
 
             }

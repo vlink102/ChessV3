@@ -19,7 +19,7 @@ import java.util.concurrent.CompletableFuture;
  * 8/1p6/1P1p4/1K1p2B1/P2P4/6pp/1P6/5k2 w - - 0 1
  * 8/8/5k2/8/p7/8/1PK5/8 w - - 0 1
  * 5Q2/8/8/8/p7/1p6/6r1/k1K2R2 w - - 0 1
- *
+ * <p>
  * 4k2r/8/8/7P/7P/6KP/7P/7R w k - 0 1
  * 7k/r6P/6K1/7R/8/8/P7/8 w - - 0 1
  * r2qk3/8/8/8/8/8/8/3QK2R w Kq - 0 1
@@ -28,32 +28,33 @@ import java.util.concurrent.CompletableFuture;
  * 6k1/P3Q3/6K1/8/8/8/5pq1/7q w - - 0 1
  * 1k6/8/pp6/6B1/3P4/2P5/r3r2P/1KR4R b - - 0 1
  * 8/8/1rk5/KR6/8/8/1P6/8 w - - 0 1
- *
+ * <p>
  * 8/8/8/8/2N5/6p1/k1K3N1/8 w - - 0 1
  * 8/8/8/2kpp3/8/8/1K1NN3/8 w - - 0 1
- *
+ * <p>
  * 6k1/8/1r2n3/2b5/K7/8/8/1N5Q w - - 0 1
  * 8/3r4/8/6n1/3K1k2/1b6/7N/7Q w - - 0 1
- *
+ * <p>
  * rr4k1/p2b2p1/2p4p/3pRp2/2pP4/2P2PqN/PPQ3P1/2K1R3 w - - 0 25
- *
+ * <p>
  * 8/8/8/8/6k1/6P1/r4PK1/1R6 w - - 0 1
- *
+ * <p>
  * 5qk1/6p1/6P1/8/PP6/KP6/8/QRRRRRRR w - - 0 1
  * 1N6/1RK5/5n2/8/8/8/5n2/6k1 w - - 0 1
- *
+ * <p>
  * 8/8/pp4p1/k1p3Pb/p1RB2pK/PpP5/8/8 w - - 0 1
- *
+ * <p>
  * 8/4N3/8/8/3pN3/1p6/p2R4/k5K1 w - - 0 1
- *
+ * <p>
  * 5k1B/2q2P2/1p1p4/pPpPpN1p/P1P1P1p1/3B2P1/8/4K3 w - - 0 1
  * nqrb4/p1p1p3/KpP1P1P1/1P6/6k1/8/8/8 w - - 0 1
- *
+ * <p>
  * R7/8/8/8/7q/2K1B2p/7P/2Bk4 w - - 0 1
  */
 public class SyzygyTableBases {
     private final GameManager manager;
     private final Client client;
+
     public SyzygyTableBases(GameManager manager) throws IOException {
         this.manager = manager;
         this.client = Client.auth("lip_DIhiyPV8deCMIaktZX8E");
@@ -103,7 +104,7 @@ public class SyzygyTableBases {
             //printTableBaseInfo(result);
             EventQueue.invokeLater(() -> {
                 manager.refreshBoard(ChessBoard.WHITE_VIEW);
-                manager.getBoard().getEvalBoard().updateEvalDTZDTM( result.dtz(), result.dtm());
+                manager.getBoard().getEvalBoard().updateEvalDTZDTM(result.dtz(), result.dtm());
 
                 manager.history.add(currentFEN);
                 manager.uciHistory.add(move.toUCI());

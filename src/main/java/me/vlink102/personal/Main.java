@@ -23,12 +23,6 @@ public class Main {
     public static boolean WHITE_TO_MOVE = true;
     public static int ENGINE_THINKING_TIME = 3000;
 
-    public enum MoveType {
-        COMPUTER,
-        RANDOM,
-        PLAYER
-    }
-
     public static void main(String[] args) {
         int boardSize = 600;
         String fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
@@ -152,6 +146,12 @@ public class Main {
             return numberOfCores * sockets;
         }
         return numberOfCores;
+    }
+
+    public enum MoveType {
+        COMPUTER,
+        RANDOM,
+        PLAYER
     }
 
     public static class OSValidator {

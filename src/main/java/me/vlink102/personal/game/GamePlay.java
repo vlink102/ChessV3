@@ -5,19 +5,13 @@ import me.vlink102.personal.game.pieces.Pawn;
 import me.vlink102.personal.game.pieces.Rook;
 import me.vlink102.personal.internal.ChessBoard;
 
-import java.awt.*;
-import java.util.concurrent.ThreadLocalRandom;
-import java.util.concurrent.atomic.AtomicBoolean;
-
 public class GamePlay {
+    private final GameManager manager;
     private volatile boolean whiteToMove;
     private int halfMoveCounter;
     private int fullMoveCounter;
     private int fiftyMoveRule;
-
     private boolean castleWhiteKing, castleWhiteQueen, castleBlackKing, castleBlackQueen;
-
-    private final GameManager manager;
 
     public GamePlay(GameManager manager) {
         reset();
@@ -28,56 +22,56 @@ public class GamePlay {
         return whiteToMove;
     }
 
+    public void setWhiteToMove(boolean whiteToMove) {
+        this.whiteToMove = whiteToMove;
+    }
+
     public int getHalfMoveCounter() {
         return halfMoveCounter;
-    }
-
-    public int getFullMoveCounter() {
-        return fullMoveCounter;
-    }
-
-    public boolean isCastleBlackKing() {
-        return castleBlackKing;
-    }
-
-    public boolean isCastleBlackQueen() {
-        return castleBlackQueen;
-    }
-
-    public boolean isCastleWhiteKing() {
-        return castleWhiteKing;
-    }
-
-    public boolean isCastleWhiteQueen() {
-        return castleWhiteQueen;
-    }
-
-    public void setCastleBlackKing(boolean castleBlackKing) {
-        this.castleBlackKing = castleBlackKing;
-    }
-
-    public void setCastleBlackQueen(boolean castleBlackQueen) {
-        this.castleBlackQueen = castleBlackQueen;
-    }
-
-    public void setCastleWhiteQueen(boolean castleWhiteQueen) {
-        this.castleWhiteQueen = castleWhiteQueen;
-    }
-
-    public void setCastleWhiteKing(boolean castleWhiteKing) {
-        this.castleWhiteKing = castleWhiteKing;
-    }
-
-    public void setFullMoveCounter(int fullMoveCounter) {
-        this.fullMoveCounter = fullMoveCounter;
     }
 
     public void setHalfMoveCounter(int halfMoveCounter) {
         this.halfMoveCounter = halfMoveCounter;
     }
 
-    public void setWhiteToMove(boolean whiteToMove) {
-        this.whiteToMove = whiteToMove;
+    public int getFullMoveCounter() {
+        return fullMoveCounter;
+    }
+
+    public void setFullMoveCounter(int fullMoveCounter) {
+        this.fullMoveCounter = fullMoveCounter;
+    }
+
+    public boolean isCastleBlackKing() {
+        return castleBlackKing;
+    }
+
+    public void setCastleBlackKing(boolean castleBlackKing) {
+        this.castleBlackKing = castleBlackKing;
+    }
+
+    public boolean isCastleBlackQueen() {
+        return castleBlackQueen;
+    }
+
+    public void setCastleBlackQueen(boolean castleBlackQueen) {
+        this.castleBlackQueen = castleBlackQueen;
+    }
+
+    public boolean isCastleWhiteKing() {
+        return castleWhiteKing;
+    }
+
+    public void setCastleWhiteKing(boolean castleWhiteKing) {
+        this.castleWhiteKing = castleWhiteKing;
+    }
+
+    public boolean isCastleWhiteQueen() {
+        return castleWhiteQueen;
+    }
+
+    public void setCastleWhiteQueen(boolean castleWhiteQueen) {
+        this.castleWhiteQueen = castleWhiteQueen;
     }
 
     public int getFiftyMoveRule() {

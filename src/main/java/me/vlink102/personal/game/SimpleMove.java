@@ -3,7 +3,6 @@ package me.vlink102.personal.game;
 import me.vlink102.personal.game.pieces.King;
 import me.vlink102.personal.game.pieces.Pawn;
 import me.vlink102.personal.internal.ChessBoard;
-import me.vlink102.personal.internal.PieceEnum;
 
 public class SimpleMove {
     private final GameManager.Tile from;
@@ -23,6 +22,28 @@ public class SimpleMove {
         this.from = from;
         this.to = to;
         this.promotionPieces = promotionPieces;
+    }
+
+    public static SimpleMove parseStockFishMove(PieceWrapper[][] board, String stockFishMove) {
+        if (stockFishMove.equals("(none)")) return null;
+        String fromString = stockFishMove.substring(0, 2);
+        String toString = stockFishMove.substring(2, 4);
+        GameManager.Tile from = GameManager.Tile.parseTile(fromString);
+        GameManager.Tile to = GameManager.Tile.parseTile(toString);
+        if (stockFishMove.length() == 4) {
+            return new SimpleMove(from, to, board);
+        } else {
+            String promotionPieceString = stockFishMove.substring(4, 5).toLowerCase();
+            int pieceNum = switch (promotionPieceString) {
+                case "q" -> 0;
+                case "r" -> 1;
+                case "b" -> 2;
+                case "n" -> 3;
+                default -> -1;
+            };
+            boolean isWhite = board[from.row()][from.column()].isWhite();
+            return new SimpleMove(from, to, board, ChessBoard.getFromInteger(pieceNum, isWhite, to));
+        }
     }
 
     public PieceWrapper getPromotionPiece() {
@@ -52,7 +73,7 @@ public class SimpleMove {
 
     @Override
     public String toString() {
-        return ((!(piece instanceof Pawn)) ? piece.getType().getAbbr().substring(1,2).toUpperCase() : "") + to.toString();
+        return ((!(piece instanceof Pawn)) ? piece.getType().getAbbr().substring(1, 2).toUpperCase() : "") + to.toString();
     }
 
     public String toUCI() {
@@ -111,27 +132,5 @@ public class SimpleMove {
             }
         }
         return builder.toString();
-    }
-
-    public static SimpleMove parseStockFishMove(PieceWrapper[][] board, String stockFishMove) {
-        if (stockFishMove.equals("(none)")) return null;
-        String fromString = stockFishMove.substring(0,2);
-        String toString = stockFishMove.substring(2, 4);
-        GameManager.Tile from = GameManager.Tile.parseTile(fromString);
-        GameManager.Tile to = GameManager.Tile.parseTile(toString);
-        if (stockFishMove.length() == 4) {
-            return new SimpleMove(from, to, board);
-        } else {
-            String promotionPieceString = stockFishMove.substring(4,5).toLowerCase();
-            int pieceNum = switch (promotionPieceString) {
-                case "q" -> 0;
-                case "r" -> 1;
-                case "b" -> 2;
-                case "n" -> 3;
-                default -> -1;
-            };
-            boolean isWhite = board[from.row()][from.column()].isWhite();
-            return new SimpleMove(from, to, board, ChessBoard.getFromInteger(pieceNum, isWhite, to));
-        }
     }
 }

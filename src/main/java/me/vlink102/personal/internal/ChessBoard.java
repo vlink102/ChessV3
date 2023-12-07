@@ -214,6 +214,7 @@ public class ChessBoard extends JFrame implements MouseListener, MouseMotionList
         jMenuBar.add(commands);
         jMenuBar.add(computerSettings);
         this.setJMenuBar(jMenuBar);
+        this.setAlwaysOnTop(true);
         this.pack();
         this.setLocationRelativeTo(null);
         this.setVisible(true);
@@ -351,7 +352,7 @@ public class ChessBoard extends JFrame implements MouseListener, MouseMotionList
             winChanceBar.setUI(new BasicProgressBarUI());
 
             swingWorker = new SwingWorker();
-            CompletableFuture.runAsync(swingWorker::go);
+            CompletableFuture.runAsync(() -> swingWorker.go(manager.getBoard()));
 
             panel.add(new JSeparator());
             panel.add(winChanceBar);

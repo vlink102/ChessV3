@@ -36,9 +36,8 @@ public class SwingWorker {
     }
 
     public MySwingWorker getMySwingWorker() {
-        if (mySwingWorker.isCancelled()) {
-            return null;
-        }
+        if (mySwingWorker == null) return null;
+        if (mySwingWorker.isCancelled()) return null;
         return mySwingWorker;
     }
 

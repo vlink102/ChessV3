@@ -3,7 +3,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>me.vlink102.personal</groupId>
   <artifactId>ChessV3</artifactId>
-  <version>v6.8.5</version>
+  <version>v6.8.6</version>
   <build>
     <plugins>
       <plugin>
@@ -15,7 +15,7 @@
       </plugin>
       <plugin>
         <artifactId>maven-shade-plugin</artifactId>
-        <version>3.4.1</version>
+        <version>3.5.1</version>
         <executions>
           <execution>
             <phase>package</phase>
@@ -28,7 +28,7 @@
       </plugin>
       <plugin>
         <artifactId>maven-jar-plugin</artifactId>
-        <version>3.1.0</version>
+        <version>3.3.0</version>
         <configuration>
           <archive>
             <manifest>

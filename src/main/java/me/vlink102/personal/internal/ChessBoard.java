@@ -17,8 +17,8 @@ import java.awt.datatransfer.StringSelection;
 import java.awt.datatransfer.UnsupportedFlavorException;
 import java.awt.event.*;
 import java.io.IOException;
-import java.util.*;
 import java.util.Timer;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
 public class ChessBoard extends JFrame implements MouseListener, MouseMotionListener {
@@ -594,78 +594,84 @@ public class ChessBoard extends JFrame implements MouseListener, MouseMotionList
     }
 
     public void mousePressed(MouseEvent e) {
-        chessPiece = null;
-        Component c = chessBoard.findComponentAt(e.getX(), e.getY());
+        if (SwingUtilities.isLeftMouseButton(e)) {
+            chessPiece = null;
+            Component c = chessBoard.findComponentAt(e.getX(), e.getY());
 
-        if (c instanceof JPanel) return;
+            if (c instanceof JPanel) return;
 
-        chessPiece = (JLabel) c;
-        chessPiece.setLocation(e.getX() - (chessPiece.getWidth() / 2), e.getY()  - (chessPiece.getWidth() / 2));
+            chessPiece = (JLabel) c;
+            chessPiece.setLocation(e.getX() - (chessPiece.getWidth() / 2), e.getY()  - (chessPiece.getWidth() / 2));
 
-        layeredPane.add(chessPiece, JLayeredPane.DRAG_LAYER);
-        layeredPane.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+            layeredPane.add(chessPiece, JLayeredPane.DRAG_LAYER);
+            layeredPane.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
 
-        clicked = e.getPoint();
+            clicked = e.getPoint();
+        } else if (SwingUtilities.isRightMouseButton(e)) {
+            GameManager.Tile clickedTile = GameManager.Tile.fromPoint(WHITE_VIEW, e.getPoint(), pieceSize);
+            if (manager.getInternalBoard()[clickedTile.row()][clickedTile.column()] == null) return;
 
-        GameManager.Tile clickedTile = GameManager.Tile.fromPoint(WHITE_VIEW, clicked, pieceSize);
-        if (manager.getInternalBoard()[clickedTile.row()][clickedTile.column()] == null) return;
-
-        StringJoiner joiner = new StringJoiner(", ");
-        int i = 0;
-        for (SimpleMove possibleMove : Objects.requireNonNull(manager.possibleMoves(manager.getInternalBoard(), GameManager.Tile.fromPoint(WHITE_VIEW, clicked, pieceSize)))) {
-            joiner.add(possibleMove.deepToString(manager, manager.getInternalBoard()));
-            i++;
+            StringJoiner joiner = new StringJoiner(", ");
+            int i = 0;
+            for (SimpleMove possibleMove : Objects.requireNonNull(manager.possibleMoves(manager.getInternalBoard(), GameManager.Tile.fromPoint(WHITE_VIEW, e.getPoint(), pieceSize)))) {
+                joiner.add(possibleMove.deepToString(manager, manager.getInternalBoard()));
+                i++;
+            }
+            System.out.println("Available moves: [" + joiner + "] (" + i + ")");
         }
-        System.out.println("Available moves: [" + joiner + "] (" + i + ")");
     }
 
     public void mouseDragged(MouseEvent me) {
-        if (chessPiece == null) return;
+        if (SwingUtilities.isLeftMouseButton(me)) {
+            if (chessPiece == null) return;
 
-        int x = Math.max(Math.min(me.getX(), layeredPane.getWidth()), 0);
-        int y = Math.max(Math.min(me.getY(), layeredPane.getHeight()), 0);
+            int x = Math.max(Math.min(me.getX(), layeredPane.getWidth()), 0);
+            int y = Math.max(Math.min(me.getY(), layeredPane.getHeight()), 0);
 
-        chessPiece.setLocation(x - (chessPiece.getWidth() / 2), y - (chessPiece.getWidth() / 2));
+            chessPiece.setLocation(x - (chessPiece.getWidth() / 2), y - (chessPiece.getWidth() / 2));
+        }
     }
 
     public synchronized void mouseReleased(MouseEvent e) {
-        layeredPane.setCursor(null);
+        if (SwingUtilities.isLeftMouseButton(e)) {
+            layeredPane.setCursor(null);
 
-        if (chessPiece == null) return;
+            if (chessPiece == null) return;
 
-        chessPiece.setVisible(false);
-        layeredPane.remove(chessPiece);
-        chessPiece.setVisible(true);
+            chessPiece.setVisible(false);
+            layeredPane.remove(chessPiece);
+            chessPiece.setVisible(true);
 
-        int x = Math.max(Math.min(e.getX(), layeredPane.getWidth() - chessPiece.getWidth()), 0);
-        int y = Math.max(Math.min(e.getY(), layeredPane.getHeight() - chessPiece.getHeight()), 0);
+            int x = Math.max(Math.min(e.getX(), layeredPane.getWidth() - chessPiece.getWidth()), 0);
+            int y = Math.max(Math.min(e.getY(), layeredPane.getHeight() - chessPiece.getHeight()), 0);
 
-        Component c = chessBoard.findComponentAt(x, y);
-        released = new Point(x, y);
+            Component c = chessBoard.findComponentAt(x, y);
+            released = new Point(x, y);
 
-        Container parent;
-        if (c instanceof JLabel) {
-            parent = c.getParent();
-            parent.remove(0);
-        } else {
-            parent = (Container) c;
+            Container parent;
+            if (c instanceof JLabel) {
+                parent = c.getParent();
+                parent.remove(0);
+            } else {
+                parent = (Container) c;
+            }
+            parent.add(chessPiece);
+            parent.validate();
+
+            if (released == null || clicked == null) return;
+            GameManager.Tile from = GameManager.Tile.fromPoint(WHITE_VIEW, clicked, pieceSize);
+            GameManager.Tile to = GameManager.Tile.fromPoint(WHITE_VIEW, released, pieceSize);
+            if (from.equals(to)) return;
+            final PieceWrapper piece = manager.getInternalBoard()[from.row()][from.column()];
+            if ((to.row() == 7 || to.row() == 0) && piece instanceof Pawn) {
+                manager.playerMovePiece(from, to, manager.getInternalBoard(), getFromInteger(0 /* TODO Piece Promotion Panel */, piece.isWhite(), to));
+            } else {
+                manager.playerMovePiece(from, to, manager.getInternalBoard());
+            }
+
+            released = null;
+            clicked = null;
         }
-        parent.add(chessPiece);
-        parent.validate();
-
-        if (released == null || clicked == null) return;
-        GameManager.Tile from = GameManager.Tile.fromPoint(WHITE_VIEW, clicked, pieceSize);
-        GameManager.Tile to = GameManager.Tile.fromPoint(WHITE_VIEW, released, pieceSize);
-        if (from.equals(to)) return;
-        final PieceWrapper piece = manager.getInternalBoard()[from.row()][from.column()];
-        if ((to.row() == 7 || to.row() == 0) && piece instanceof Pawn) {
-            manager.playerMovePiece(from, to, manager.getInternalBoard(), getFromInteger(0 /* TODO Piece Promotion Panel */, piece.isWhite(), to));
-        } else {
-            manager.playerMovePiece(from, to, manager.getInternalBoard());
-        }
-
-        released = null;
-        clicked = null;
     }
 
     public static PieceWrapper getFromInteger(int piece, boolean white, GameManager.Tile startingSquare) {

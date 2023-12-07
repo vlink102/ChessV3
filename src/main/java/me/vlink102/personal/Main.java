@@ -168,24 +168,5 @@ public class Main {
         public static boolean isUnix() {
             return (OS.contains("nix") || OS.contains("nux") || OS.contains("aix"));
         }
-
-        public static boolean isSolaris() {
-            return (OS.contains("sunos"));
-        }
-
-        @SuppressWarnings("unused")
-        public static String getOS() {
-            if (isWindows()) {
-                return "win";
-            } else if (isMac()) {
-                return "osx";
-            } else if (isUnix()) {
-                return "uni";
-            } else if (isSolaris()) {
-                return "sol";
-            } else {
-                return "err";
-            }
-        }
     }
 }

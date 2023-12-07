@@ -2,8 +2,9 @@
 
 # Features:
   - [Forsyth-Edwards-Notation](https://en.wikipedia.org/wiki/Forsyth%E2%80%93Edwards_Notation) full integration (import + export)
-> [!WARNING]
-> Malformed FEN strings will crash the program.
+> [!NOTE]
+> ~~Malformed FEN strings will crash the program.~~ (Fixed in [c489405](https://github.com/vlink102/ChessV3/commit/c4894051c88b84fd15332ec980ee48112bd977e0))
+> 
 > A fen string should follow the format:
 > ```
 > [Position] [Turn] (Castling Availability) (En-passant square) {Half-Move Clock} {Full-Move Clock}
@@ -126,6 +127,15 @@ $$f(a)=50+(50*(\frac{2}{1+e^{-0.004a}}-1))$$
 |-Engine.Time=``VALUE``|3000|Integer|
 |-Engine.PV=``VALUE``|1|Integer|
 |-Engine.Cores=``VALUE``|``Based on your CPU``|Integer|
+
+> [!TIP]
+> The default cores will be set to your physical processor count.
+>
+> For optimal performance, consider using the following:
+> ```
+> -Engine.Cores={LOGICAL_PROCESSOR_COUNT}
+> ```
+> For more info, see [hyper threading](https://en.wikipedia.org/wiki/Hyper-threading)
 
 # Windows Powershell Bash Script
 

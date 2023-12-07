@@ -322,6 +322,7 @@ public class ChessBoard extends JFrame implements MouseListener, MouseMotionList
             historyPanel.setBorder(new EmptyBorder(0, 3, 3, 3));
             pane = new JScrollPane(historyPanel, ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED, ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
             pane.setPreferredSize(new Dimension(size, size / 2));
+            pane.getVerticalScrollBar().setBlockIncrement(20);
             panel.add(new JSeparator());
             panel.add(pane);
 

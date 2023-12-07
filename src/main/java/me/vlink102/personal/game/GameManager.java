@@ -11,9 +11,8 @@ import javax.swing.*;
 import java.awt.*;
 import java.lang.reflect.InvocationTargetException;
 import java.util.List;
-import java.util.*;
 import java.util.Timer;
-import java.util.concurrent.CompletableFuture;
+import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
 
 public class GameManager {
@@ -120,9 +119,14 @@ public class GameManager {
         refreshBoard(ChessBoard.WHITE_VIEW);
         EventQueue.invokeLater(() -> {
             recursiveMoves();
-            Container panel = board.getContentPane();
-            panel.paintComponents(panel.getGraphics());
+            repaintContentPane(board);
         });
+    }
+
+    public void repaintContentPane(ChessBoard board) {
+        JPanel yeah = board.getChessBoard();
+        yeah.revalidate();
+        yeah.repaint();
     }
 
     public void reset() {
@@ -139,8 +143,7 @@ public class GameManager {
         refreshBoard(ChessBoard.WHITE_VIEW);
         EventQueue.invokeLater(() -> {
             recursiveMoves();
-            Container panel = board.getContentPane();
-            panel.paintComponents(panel.getGraphics());
+            repaintContentPane(board);
         });
     }
 
@@ -288,8 +291,7 @@ public class GameManager {
             }
             Main.evaluation.moveMade(currentFEN);
             recursiveMoves();
-            Container panel = this.board.getContentPane();
-            panel.paintComponents(panel.getGraphics());
+            repaintContentPane(this.board);
         });
     }
 
@@ -370,7 +372,7 @@ public class GameManager {
                         history.add(currentFEN);
                         uciHistory.add(move.toUCI());
                         GameManager.this.board.getEvalBoard().addHistory(moveString, currentFEN);
-                        GameManager.this.board.getContentPane().paintComponents(GameManager.this.board.getContentPane().getGraphics());
+                        repaintContentPane(GameManager.this.board);
                         Main.evaluation.moveMade(currentFEN);
                         recursiveMoves();
                     });
@@ -849,12 +851,28 @@ public class GameManager {
             JPanel tilePanel = (JPanel) component;
             tilePanel.removeAll();
         }
+
         for (int i = 0; i < 8; i++) {
             for (int j = 0; j < 8; j++) {
                 Tile tile = new Tile(i, j);
+                Tile current = board.getCurrentPicked();
+                if (current != null && board.getClicked() != null) {
+                    if (viewFromWhite) {
+                        if (current.row == 7 - tile.row && current.column == 7 - tile.column) {
+                            continue;
+                        }
+                    } else {
+                        if (current.equals(tile)) {
+                            continue;
+                        }
+                    }
+
+                }
+
                 addPiece(viewFromWhite ? internalBoard[7 - tile.row][7 - tile.column] : internalBoard[tile.row][tile.column], tile);
             }
         }
+
     }
 
     public void addPiece(PieceWrapper piece, Tile tile) {

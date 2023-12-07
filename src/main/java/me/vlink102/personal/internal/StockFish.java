@@ -117,7 +117,7 @@ public class StockFish {
                             manager.history.add(currentFEN);
                             manager.getBoard().getEvalBoard().addHistory(parsedMoveString, currentFEN);
                             manager.uciHistory.add(parsedMove.toUCI());
-                            manager.getBoard().getContentPane().paintComponents(manager.getBoard().getContentPane().getGraphics());
+                            manager.repaintContentPane(manager.getBoard());
                             Main.evaluation.moveMade(currentFEN);
                             manager.recursiveMoves();
                         });

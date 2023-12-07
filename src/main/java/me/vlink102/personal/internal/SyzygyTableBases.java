@@ -4,7 +4,6 @@ import chariot.Client;
 import chariot.model.TablebaseResult;
 import me.vlink102.personal.Main;
 import me.vlink102.personal.game.GameManager;
-import me.vlink102.personal.game.PieceWrapper;
 import me.vlink102.personal.game.SimpleMove;
 
 import java.awt.*;
@@ -109,7 +108,7 @@ public class SyzygyTableBases {
                 manager.history.add(currentFEN);
                 manager.uciHistory.add(move.toUCI());
                 manager.getBoard().getEvalBoard().addHistory(parsedMoveString, currentFEN);
-                manager.getBoard().getContentPane().paintComponents(manager.getBoard().getContentPane().getGraphics());
+                manager.repaintContentPane(manager.getBoard());
                 Main.evaluation.moveMade(currentFEN);
                 manager.recursiveMoves();
             });

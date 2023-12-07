@@ -29,6 +29,204 @@ public class ChessBoard extends JFrame implements MouseListener, MouseMotionList
     Point clicked;
     Point released;
 
+    GameManager.Tile currentPicked;
+
+    public ChessBoard(int size, String fen) {
+        WHITE_VIEW = Main.WHITE_TO_MOVE;
+        COMPUTER_WAIT_TIME_MS = Main.ENGINE_THINKING_TIME;
+        this.currentPicked = null;
+        this.pieceSize = size / 8;
+        Dimension boardSize = new Dimension(size, size);
+
+        layeredPane = new JLayeredPane();
+        layeredPane.setPreferredSize(boardSize);
+        layeredPane.addMouseListener(this);
+        layeredPane.addMouseMotionListener(this);
+        getContentPane().add(layeredPane);
+
+        chessBoard = new JPanel();
+        chessBoard.setLayout(new GridLayout(8, 8));
+        chessBoard.setPreferredSize(boardSize);
+        chessBoard.setBounds(0, 0, boardSize.width, boardSize.height);
+        layeredPane.add(chessBoard, JLayeredPane.DEFAULT_LAYER);
+
+        for (int i = 0; i < 8; i++) {
+            for (int j = 0; j < 8; j++) {
+                JPanel square = new JPanel(new BorderLayout());
+                square.setBackground((i + j) % 2 == 0 ? Color.LIGHT_GRAY : Color.DARK_GRAY);
+                chessBoard.add(square);
+            }
+        }
+
+        this.setTitle("Chess");
+        try {
+            this.setIconImage(Main.fileUtils.getImage("bp"));
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        this.setDefaultCloseOperation(EXIT_ON_CLOSE);
+        this.setResizable(false);
+        JMenuBar jMenuBar = new JMenuBar();
+        JMenu menu = new JMenu("Settings");
+        JMenuItem setFEN = new JMenuItem(new AbstractAction("Paste FEN") {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                try {
+                    Toolkit toolkit = Toolkit.getDefaultToolkit();
+                    Clipboard clipboard = toolkit.getSystemClipboard();
+                    String result = (String) clipboard.getData(DataFlavor.stringFlavor);
+                    manager.reset(result);
+                } catch (UnsupportedFlavorException | IOException ex) {
+                    throw new RuntimeException(ex);
+                }
+            }
+        });
+        JMenuItem copyFEN = new JMenuItem(new AbstractAction("Copy FEN") {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                Toolkit.getDefaultToolkit().getSystemClipboard().setContents(new StringSelection(manager.generateCurrentFEN()), null);
+            }
+        });
+        JCheckBoxMenuItem viewFromWhite = new JCheckBoxMenuItem("View from white?");
+        viewFromWhite.addItemListener(e -> ChessBoard.WHITE_VIEW = viewFromWhite.isSelected());
+        viewFromWhite.setSelected(ChessBoard.WHITE_VIEW);
+
+
+
+        JMenu opponent = new JMenu("Opponent Type");
+        ButtonGroup opponentGroup = new ButtonGroup();
+        JRadioButtonMenuItem computerOpponent = new JRadioButtonMenuItem("Computer");
+        computerOpponent.addItemListener(e -> {
+            if (computerOpponent.isSelected()) {
+                Main.OPPONENT = Main.MoveType.COMPUTER;
+            }
+        });
+        opponentGroup.add(computerOpponent);
+        JRadioButtonMenuItem playerOpponent = new JRadioButtonMenuItem("Player");
+        playerOpponent.addItemListener(e -> {
+            if (playerOpponent.isSelected()) {
+                Main.OPPONENT = Main.MoveType.PLAYER;
+            }
+        });
+        opponentGroup.add(playerOpponent);
+        JRadioButtonMenuItem randomMoveOpponent = new JRadioButtonMenuItem("Random Moves");
+        randomMoveOpponent.addItemListener(e -> {
+            if (randomMoveOpponent.isSelected()) {
+                Main.OPPONENT = Main.MoveType.RANDOM;
+            }
+        });
+
+        opponentGroup.add(randomMoveOpponent);
+
+        JMenu opponent2 = new JMenu("Self Type");
+        ButtonGroup opponentGroup2 = new ButtonGroup();
+        JRadioButtonMenuItem computerOpponent2 = new JRadioButtonMenuItem("Computer");
+        computerOpponent2.addItemListener(e -> {
+            if (computerOpponent2.isSelected()) {
+                Main.SELF = Main.MoveType.COMPUTER;
+            }
+        });
+        opponentGroup2.add(computerOpponent2);
+        JRadioButtonMenuItem playerOpponent2 = new JRadioButtonMenuItem("Player");
+        playerOpponent2.addItemListener(e -> {
+            if (playerOpponent2.isSelected()) {
+                Main.SELF = Main.MoveType.PLAYER;
+            }
+        });
+        opponentGroup2.add(playerOpponent2);
+        JRadioButtonMenuItem randomMoveOpponent2 = new JRadioButtonMenuItem("Random Moves");
+        randomMoveOpponent2.addItemListener(e -> {
+            if (randomMoveOpponent2.isSelected()) {
+                Main.SELF = Main.MoveType.RANDOM;
+            }
+        });
+
+        computerOpponent.setSelected(Main.OPPONENT == Main.MoveType.COMPUTER);
+        computerOpponent2.setSelected(Main.SELF == Main.MoveType.COMPUTER);
+        playerOpponent.setSelected(Main.OPPONENT == Main.MoveType.PLAYER);
+        playerOpponent2.setSelected(Main.SELF == Main.MoveType.PLAYER);
+        randomMoveOpponent.setSelected(Main.OPPONENT == Main.MoveType.RANDOM);
+        randomMoveOpponent2.setSelected(Main.SELF == Main.MoveType.RANDOM);
+
+        opponentGroup2.add(randomMoveOpponent2);
+
+        opponent.add(playerOpponent);
+        opponent.add(computerOpponent);
+        opponent.add(randomMoveOpponent);
+        opponent2.add(playerOpponent2);
+        opponent2.add(computerOpponent2);
+        opponent2.add(randomMoveOpponent2);
+
+        JMenu commands = new JMenu("Power Actions");
+        JMenuItem resetGame = new JMenuItem(new AbstractAction("Reset Game") {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                manager.reset();
+            }
+        });
+        JMenuItem quitProgram = new JMenuItem(new AbstractAction("Quit Program") {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                System.exit(0);
+            }
+        });
+        JCheckBoxMenuItem ignoreRules = new JCheckBoxMenuItem("Illegal moves");
+        ignoreRules.addItemListener(e -> IGNORE_RULES = ignoreRules.isSelected());
+        ignoreRules.setSelected(IGNORE_RULES);
+
+
+
+        JMenu computerSettings = new JMenu("Computer Settings");
+
+        menu.add(setFEN);
+        menu.add(copyFEN);
+        menu.add(viewFromWhite);
+        menu.add(opponent);
+        menu.add(opponent2);
+        commands.add(ignoreRules);
+        commands.add(resetGame);
+        commands.add(quitProgram);
+        computerSettings.add(getSlider(SliderPopupListener.SliderType.TIME, 0, 20000, COMPUTER_WAIT_TIME_MS, 1000, 100, "Engine Time", e -> {
+            JSlider slider = (JSlider) e.getSource();
+            if (slider.getValueIsAdjusting()) return;
+            COMPUTER_WAIT_TIME_MS = slider.getValue();
+        }));
+        computerSettings.add(getSlider(new SliderPopupListener.SliderTypeLabel(SliderPopupListener.SliderType.VALUE, " threads"), 1, Main.CPU_CORES, Main.CPU_CORES, 1, 1, "Engine Threads", e -> {
+            JSlider slider = (JSlider) e.getSource();
+            if (slider.getValueIsAdjusting()) return;
+            Main.stockFish.sendCommand("setoption name Threads value " + slider.getValue());
+        }));
+        computerSettings.add(getSlider(new SliderPopupListener.SliderTypeLabel(SliderPopupListener.SliderType.VALUE, " variations"), 1, 100, 1, 1, 1, "Engine Principal Variation", e -> {
+            JSlider slider = (JSlider) e.getSource();
+            if (slider.getValueIsAdjusting()) return;
+            Main.stockFish.sendCommand("setoption name MultiPV value " + slider.getValue());
+        }));
+        computerSettings.add(getSlider(new SliderPopupListener.SliderTypeLabel(SliderPopupListener.SliderType.VALUE, "Level "), 0, 20, 20, 1, 1, "Engine Strength", e -> {
+            JSlider slider = (JSlider) e.getSource();
+            if (slider.getValueIsAdjusting()) return;
+            Main.stockFish.sendCommand("setoption name Skill Level value " + slider.getValue());
+        }));
+        jMenuBar.add(menu);
+        jMenuBar.add(commands);
+        jMenuBar.add(computerSettings);
+        this.setJMenuBar(jMenuBar);
+        this.pack();
+        this.setLocationRelativeTo(null);
+        this.setVisible(true);
+
+        this.manager = new GameManager(this, fen);
+        //r3k2r/pbppqpb1/1pn3p1/7p/1N2p1n1/1PP4N/PB1P1PPP/2QRKR2 w kq - 0 1
+        this.evalBoard = new EvalBoard(size);
+    }
+
+    public JLabel getChessPiece() {
+        return chessPiece;
+    }
+
+    public GameManager.Tile getCurrentPicked() {
+        return currentPicked;
+    }
+
     private final int pieceSize;
     public static boolean WHITE_VIEW = true;
     public static int COMPUTER_WAIT_TIME_MS;
@@ -376,191 +574,8 @@ public class ChessBoard extends JFrame implements MouseListener, MouseMotionList
         return evalBoard;
     }
 
-    public ChessBoard(int size, String fen) {
-        WHITE_VIEW = Main.WHITE_TO_MOVE;
-        COMPUTER_WAIT_TIME_MS = Main.ENGINE_THINKING_TIME;
-        this.pieceSize = size / 8;
-        Dimension boardSize = new Dimension(size, size);
-
-        layeredPane = new JLayeredPane();
-        layeredPane.setPreferredSize(boardSize);
-        layeredPane.addMouseListener(this);
-        layeredPane.addMouseMotionListener(this);
-        getContentPane().add(layeredPane);
-
-        chessBoard = new JPanel();
-        chessBoard.setLayout(new GridLayout(8, 8));
-        chessBoard.setPreferredSize(boardSize);
-        chessBoard.setBounds(0, 0, boardSize.width, boardSize.height);
-        layeredPane.add(chessBoard, JLayeredPane.DEFAULT_LAYER);
-
-        for (int i = 0; i < 8; i++) {
-            for (int j = 0; j < 8; j++) {
-                JPanel square = new JPanel(new BorderLayout());
-                square.setBackground((i + j) % 2 == 0 ? Color.LIGHT_GRAY : Color.DARK_GRAY);
-                chessBoard.add(square);
-            }
-        }
-
-        this.setTitle("Chess");
-        try {
-            this.setIconImage(Main.fileUtils.getImage("bp"));
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-        this.setDefaultCloseOperation(EXIT_ON_CLOSE);
-        this.setResizable(false);
-        JMenuBar jMenuBar = new JMenuBar();
-        JMenu menu = new JMenu("Settings");
-        JMenuItem setFEN = new JMenuItem(new AbstractAction("Paste FEN") {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                try {
-                    Toolkit toolkit = Toolkit.getDefaultToolkit();
-                    Clipboard clipboard = toolkit.getSystemClipboard();
-                    String result = (String) clipboard.getData(DataFlavor.stringFlavor);
-                    manager.reset(result);
-                } catch (UnsupportedFlavorException | IOException ex) {
-                    throw new RuntimeException(ex);
-                }
-            }
-        });
-        JMenuItem copyFEN = new JMenuItem(new AbstractAction("Copy FEN") {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                Toolkit.getDefaultToolkit().getSystemClipboard().setContents(new StringSelection(manager.generateCurrentFEN()), null);
-            }
-        });
-        JCheckBoxMenuItem viewFromWhite = new JCheckBoxMenuItem("View from white?");
-        viewFromWhite.addItemListener(e -> ChessBoard.WHITE_VIEW = viewFromWhite.isSelected());
-        viewFromWhite.setSelected(ChessBoard.WHITE_VIEW);
-
-
-
-        JMenu opponent = new JMenu("Opponent Type");
-        ButtonGroup opponentGroup = new ButtonGroup();
-        JRadioButtonMenuItem computerOpponent = new JRadioButtonMenuItem("Computer");
-        computerOpponent.addItemListener(e -> {
-            if (computerOpponent.isSelected()) {
-                Main.OPPONENT = Main.MoveType.COMPUTER;
-            }
-        });
-        opponentGroup.add(computerOpponent);
-        JRadioButtonMenuItem playerOpponent = new JRadioButtonMenuItem("Player");
-        playerOpponent.addItemListener(e -> {
-            if (playerOpponent.isSelected()) {
-                Main.OPPONENT = Main.MoveType.PLAYER;
-            }
-        });
-        opponentGroup.add(playerOpponent);
-        JRadioButtonMenuItem randomMoveOpponent = new JRadioButtonMenuItem("Random Moves");
-        randomMoveOpponent.addItemListener(e -> {
-            if (randomMoveOpponent.isSelected()) {
-                Main.OPPONENT = Main.MoveType.RANDOM;
-            }
-        });
-
-        opponentGroup.add(randomMoveOpponent);
-
-        JMenu opponent2 = new JMenu("Self Type");
-        ButtonGroup opponentGroup2 = new ButtonGroup();
-        JRadioButtonMenuItem computerOpponent2 = new JRadioButtonMenuItem("Computer");
-        computerOpponent2.addItemListener(e -> {
-            if (computerOpponent2.isSelected()) {
-                Main.SELF = Main.MoveType.COMPUTER;
-            }
-        });
-        opponentGroup2.add(computerOpponent2);
-        JRadioButtonMenuItem playerOpponent2 = new JRadioButtonMenuItem("Player");
-        playerOpponent2.addItemListener(e -> {
-            if (playerOpponent2.isSelected()) {
-                Main.SELF = Main.MoveType.PLAYER;
-            }
-        });
-        opponentGroup2.add(playerOpponent2);
-        JRadioButtonMenuItem randomMoveOpponent2 = new JRadioButtonMenuItem("Random Moves");
-        randomMoveOpponent2.addItemListener(e -> {
-            if (randomMoveOpponent2.isSelected()) {
-                Main.SELF = Main.MoveType.RANDOM;
-            }
-        });
-
-        computerOpponent.setSelected(Main.OPPONENT == Main.MoveType.COMPUTER);
-        computerOpponent2.setSelected(Main.SELF == Main.MoveType.COMPUTER);
-        playerOpponent.setSelected(Main.OPPONENT == Main.MoveType.PLAYER);
-        playerOpponent2.setSelected(Main.SELF == Main.MoveType.PLAYER);
-        randomMoveOpponent.setSelected(Main.OPPONENT == Main.MoveType.RANDOM);
-        randomMoveOpponent2.setSelected(Main.SELF == Main.MoveType.RANDOM);
-
-        opponentGroup2.add(randomMoveOpponent2);
-
-        opponent.add(playerOpponent);
-        opponent.add(computerOpponent);
-        opponent.add(randomMoveOpponent);
-        opponent2.add(playerOpponent2);
-        opponent2.add(computerOpponent2);
-        opponent2.add(randomMoveOpponent2);
-
-        JMenu commands = new JMenu("Power Actions");
-        JMenuItem resetGame = new JMenuItem(new AbstractAction("Reset Game") {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                manager.reset();
-            }
-        });
-        JMenuItem quitProgram = new JMenuItem(new AbstractAction("Quit Program") {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                System.exit(0);
-            }
-        });
-        JCheckBoxMenuItem ignoreRules = new JCheckBoxMenuItem("Illegal moves");
-        ignoreRules.addItemListener(e -> IGNORE_RULES = ignoreRules.isSelected());
-        ignoreRules.setSelected(IGNORE_RULES);
-
-
-
-        JMenu computerSettings = new JMenu("Computer Settings");
-
-        menu.add(setFEN);
-        menu.add(copyFEN);
-        menu.add(viewFromWhite);
-        menu.add(opponent);
-        menu.add(opponent2);
-        commands.add(ignoreRules);
-        commands.add(resetGame);
-        commands.add(quitProgram);
-        computerSettings.add(getSlider(SliderPopupListener.SliderType.TIME, 0, 20000, COMPUTER_WAIT_TIME_MS, 1000, 100, "Engine Time", e -> {
-            JSlider slider = (JSlider) e.getSource();
-            if (slider.getValueIsAdjusting()) return;
-            COMPUTER_WAIT_TIME_MS = slider.getValue();
-        }));
-        computerSettings.add(getSlider(new SliderPopupListener.SliderTypeLabel(SliderPopupListener.SliderType.VALUE, " threads"), 1, Main.CPU_CORES, Main.CPU_CORES, 1, 1, "Engine Threads", e -> {
-            JSlider slider = (JSlider) e.getSource();
-            if (slider.getValueIsAdjusting()) return;
-            Main.stockFish.sendCommand("setoption name Threads value " + slider.getValue());
-        }));
-        computerSettings.add(getSlider(new SliderPopupListener.SliderTypeLabel(SliderPopupListener.SliderType.VALUE, " variations"), 1, 100, 1, 1, 1, "Engine Principal Variation", e -> {
-            JSlider slider = (JSlider) e.getSource();
-            if (slider.getValueIsAdjusting()) return;
-            Main.stockFish.sendCommand("setoption name MultiPV value " + slider.getValue());
-        }));
-        computerSettings.add(getSlider(new SliderPopupListener.SliderTypeLabel(SliderPopupListener.SliderType.VALUE, "Level "), 0, 20, 20, 1, 1, "Engine Strength", e -> {
-            JSlider slider = (JSlider) e.getSource();
-            if (slider.getValueIsAdjusting()) return;
-            Main.stockFish.sendCommand("setoption name Skill Level value " + slider.getValue());
-        }));
-        jMenuBar.add(menu);
-        jMenuBar.add(commands);
-        jMenuBar.add(computerSettings);
-        this.setJMenuBar(jMenuBar);
-        this.pack();
-        this.setLocationRelativeTo(null);
-        this.setVisible(true);
-
-        this.manager = new GameManager(this, fen);
-        //r3k2r/pbppqpb1/1pn3p1/7p/1N2p1n1/1PP4N/PB1P1PPP/2QRKR2 w kq - 0 1
-        this.evalBoard = new EvalBoard(size);
+    public Point getClicked() {
+        return clicked;
     }
 
     public static JMenuItem getSlider(SliderPopupListener.SliderClass type, int min, int max, int defaultValue, int steps, int minorSteps, String label, ChangeListener listener) {
@@ -604,9 +619,12 @@ public class ChessBoard extends JFrame implements MouseListener, MouseMotionList
             chessPiece.setLocation(e.getX() - (chessPiece.getWidth() / 2), e.getY()  - (chessPiece.getWidth() / 2));
 
             layeredPane.add(chessPiece, JLayeredPane.DRAG_LAYER);
+
             layeredPane.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
 
             clicked = e.getPoint();
+            currentPicked = GameManager.Tile.fromPoint(WHITE_VIEW, clicked, pieceSize);
+
         } else if (SwingUtilities.isRightMouseButton(e)) {
             GameManager.Tile clickedTile = GameManager.Tile.fromPoint(WHITE_VIEW, e.getPoint(), pieceSize);
             if (manager.getInternalBoard()[clickedTile.row()][clickedTile.column()] == null) return;
@@ -632,9 +650,11 @@ public class ChessBoard extends JFrame implements MouseListener, MouseMotionList
         }
     }
 
-    public synchronized void mouseReleased(MouseEvent e) {
+
+    public void mouseReleased(MouseEvent e) {
         if (SwingUtilities.isLeftMouseButton(e)) {
             layeredPane.setCursor(null);
+            currentPicked = null;
 
             if (chessPiece == null) return;
 

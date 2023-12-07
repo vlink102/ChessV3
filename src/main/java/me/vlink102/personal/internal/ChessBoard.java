@@ -75,7 +75,11 @@ public class ChessBoard extends JFrame implements MouseListener, MouseMotionList
                     Toolkit toolkit = Toolkit.getDefaultToolkit();
                     Clipboard clipboard = toolkit.getSystemClipboard();
                     String result = (String) clipboard.getData(DataFlavor.stringFlavor);
-                    manager.reset(result);
+                    if (GameManager.validateFEN(result, 8)) {
+                        manager.reset(result);
+                    } else {
+                        JOptionPane.showMessageDialog(null, "Could not parse FEN\nPlease read the documentation", "Invalid FEN", JOptionPane.INFORMATION_MESSAGE);
+                    }
                 } catch (UnsupportedFlavorException | IOException ex) {
                     throw new RuntimeException(ex);
                 }

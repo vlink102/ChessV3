@@ -787,6 +787,70 @@ public class GameManager {
         return true;
     }
 
+    public static boolean validateFEN(String FEN, int boardSize) {
+        String[] sections = FEN.split(" ");
+        if (sections.length != 6) {
+            return false;
+        }
+        if (sections[0].split("/").length != boardSize) {
+            return false;
+        }
+        if (!sections[1].equalsIgnoreCase("w") && !sections[1].equalsIgnoreCase("b")) {
+            return false;
+        }
+        if (!(Integer.parseInt(sections[4]) / 2 == Integer.parseInt(sections[5]) - 1)) {
+            return false;
+        }
+        if (!(sections[0].contains("k") && sections[0].contains("K"))) {
+            return false;
+        }
+        if (!Tile.isValidTile(boardSize, sections[3]) && !sections[3].equalsIgnoreCase("-")) {
+            return false;
+        }
+        return validateBoard(sections[0], boardSize);
+    }
+
+    public static boolean validateBoard(String board, int boardSize) {
+        for (String s : board.split("/")) {
+            if (!isValidFENRow(s, boardSize)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    @SuppressWarnings("BooleanMethodIsAlwaysInverted")
+    public static boolean isValidFENRow(String FENRow, int boardSize) {
+        int count = 0;
+        String[] chars = FENRow.split("");
+        for (int i = 0; i < chars.length; i++) {
+            String s = chars[i];
+            if (s.equals("(")) {
+                String number = "";
+                for (int j = 1; j < chars.length; j++) {
+                    if (Character.isDigit(chars[j + i].toCharArray()[0])) {
+                        number += Integer.parseInt(chars[j + i]);
+                    } else {
+                        if (chars[j + i].equals(")")) {
+                            i += j;
+                        }
+                        break;
+                    }
+                }
+                count += Integer.parseInt(number);
+            } else {
+                if (s.matches("[RNBQKPACESHIMYUrnbqkpaceshimyu]")) {
+                    count++;
+                } else if (s.matches("\\d")) {
+                    count += Integer.parseInt(s);
+                } else {
+                    return false;
+                }
+            }
+        }
+        return count == boardSize;
+    }
+
     public void cleanUpPawnPromotion(PieceWrapper[][] board, SimpleMove move) {
         PieceWrapper piece = move.getPiece();
         Tile to = move.getTo();
@@ -1008,6 +1072,17 @@ public class GameManager {
             int col = 'a' - (tileString.charAt(0) - 7);
             int row = Integer.parseInt(tileString.substring(1)) - 1;
             return new Tile(row, col);
+        }
+
+        @SuppressWarnings("BooleanMethodIsAlwaysInverted")
+        public static boolean isValidTile(int boardSize, String tile) {
+            if (tile.equals("")) {
+                return false;
+            }
+            String letterComponent = tile.substring(0, 1);
+            String numberComponent = tile.substring(1);
+            if (!letterComponent.matches("[a-z]")) return false;
+            return Integer.parseInt(numberComponent) <= boardSize && Integer.parseInt(numberComponent) > 0;
         }
 
         public int column() {

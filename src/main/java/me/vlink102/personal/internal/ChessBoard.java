@@ -247,6 +247,12 @@ public class ChessBoard extends JFrame implements MouseListener, MouseMotionList
         return pieceSize;
     }
 
+    private boolean isEvalBoardClosed;
+
+    public boolean isEvalBoardClosed() {
+        return isEvalBoardClosed;
+    }
+
     public class EvalBoard extends JFrame {
 
         private final JLabel evalLabel;
@@ -256,7 +262,9 @@ public class ChessBoard extends JFrame implements MouseListener, MouseMotionList
         private final JProgressBar evalBar;
         private final JProgressBar winChanceBar;
 
-        private final SwingWorkerRealTime swingWorkerRealTime;
+        private final JPanel panel;
+
+        private final SwingWorker swingWorker;
 
         private final JScrollPane pane;
 
@@ -266,125 +274,10 @@ public class ChessBoard extends JFrame implements MouseListener, MouseMotionList
             return positionalChances;
         }
 
-        public void addEvalHistory(double data) {
-            SwingWorker<Boolean, double[]> realTime = swingWorkerRealTime.getMySwingWorker();
-            if (realTime == null) return;
-            swingWorkerRealTime.getMySwingWorker().addData(data);
-        }
-
-        public Double getEvaluation(String fen) {
-            return positionalChances.get(fen);
-        }
-
-        public Double getLastEvaluation(String fen) {
-            return positionalChances.get(fen);
-        }
-
-        public void updateEval(Double eval, String fen) {
-            if (eval == null) {
-                setEval(fen);
-            } else if (eval != -1d) {
-                setEval(eval, fen);
-            }
-        }
-
-        public void updateEvalDTZDTM(Integer dtz, Integer dtm) {
-            if (dtz != null) {
-                setDtz(dtz);
-            } else {
-                setDtz();
-            }
-            if (dtm != null) {
-                setDtm(dtm);
-            } else {
-                setDtm();
-            }
-        }
-
-        private void setEval(String fen) {
-            evalLabel.setText("Evaluation: ±0.00");
-            double val = StockFish.getWinningChances(0d);
-            positionalChances.put(fen, val);
-            evalBar.setValue((evalBar.getMinimum() + evalBar.getMaximum()) / 2);
-            winChanceBar.setValue((int) (val * 100));
-            addEvalHistory(0);
-        }
-
-        private void setEval(Double eval, String fen) {
-            evalLabel.setText("Evaluation: " + (eval > 0 ? "+" : (eval == 0 ? "±" : "-")) + Math.abs(eval));
-            double val = StockFish.getWinningChances(eval * 100);
-            positionalChances.put(fen, val);
-            evalBar.setValue(((evalBar.getMinimum() + evalBar.getMaximum()) / 2) + ((int) (eval * 10)));
-            winChanceBar.setValue((int) (val * 100));
-            addEvalHistory(eval);
-        }
-        private void setDtz(int x) {
-            dtz.setText("DTZ: " + x + "  ");
-        }
-
-        private void setDtz() {
-            dtz.setText(null);
-        }
-
-        private void setDtm(int x) {
-            dtm.setText("Mate in: " + x + "  ");
-        }
-
-        private void setDtm() {
-            dtm.setText(null);
-        }
-
-        public void addHistory(String move, String FEN) {
-            JPanel panel = new JPanel();
-            panel.setLayout(new BoxLayout(panel, BoxLayout.X_AXIS));
-
-            JLabel moveName = new JLabel("XXXXXXX");
-            final Dimension size = moveName.getPreferredSize();
-            moveName.setMinimumSize(size);
-            moveName.setPreferredSize(size);
-            moveName.setText(move);
-            panel.add(moveName);
-
-            JButton fenButton = new JButton(new AbstractAction(FEN) {
-                @Override
-                public void actionPerformed(ActionEvent e) {
-                    Toolkit.getDefaultToolkit().getSystemClipboard().setContents(new StringSelection(FEN), null);
-                }
-            });
-            panel.add(fenButton);
-            panel.setAlignmentX(Component.LEFT_ALIGNMENT);
-
-            historyPanel.add(panel);
-            //JScrollBar vertical = pane.getVerticalScrollBar();
-            //vertical.setValue(vertical.getMaximum());
-
-            paintComponents(getGraphics());
-        }
-
-        public void clearHistory() {
-            historyPanel.removeAll();
-        }
-
-        public void reset() {
-            clearHistory();
-            positionalChances.clear();
-            this.evalLabel.setText("Resetting...");
-            Timer timer = new Timer();
-            timer.schedule(new TimerTask() {
-                @Override
-                public void run() {
-                    if (Main.stockFish == null) {
-                        evalLabel.setText("[Evaluation disabled]");
-                    } else {
-                        setEval(manager.generateCurrentFEN());
-                    }
-                }
-            }, 1000);
-        }
-
         public EvalBoard(int size) {
             Dimension dimension = new Dimension((int) (size / 1.5), size);
             this.setPreferredSize(dimension);
+            isEvalBoardClosed = false;
             this.setTitle("Evaluation");
             try {
                 this.setIconImage(Main.fileUtils.getImage("wp"));
@@ -394,7 +287,7 @@ public class ChessBoard extends JFrame implements MouseListener, MouseMotionList
 
             this.positionalChances = new HashMap<>();
 
-            JPanel panel = new JPanel();
+            panel = new JPanel();
             panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
             evalLabel = new JLabel();
             dtz = new JLabel();
@@ -452,8 +345,8 @@ public class ChessBoard extends JFrame implements MouseListener, MouseMotionList
             winChanceBar.setBackground(Color.darkGray);
             winChanceBar.setUI(new BasicProgressBarUI());
 
-            swingWorkerRealTime = new SwingWorkerRealTime();
-            CompletableFuture.runAsync(swingWorkerRealTime::go);
+            swingWorker = new SwingWorker();
+            CompletableFuture.runAsync(swingWorker::go);
 
             panel.add(new JSeparator());
             panel.add(winChanceBar);
@@ -463,11 +356,140 @@ public class ChessBoard extends JFrame implements MouseListener, MouseMotionList
             this.getContentPane().add(panel);
 
             this.setDefaultCloseOperation(DISPOSE_ON_CLOSE);
+            this.addWindowListener(new WindowAdapter() {
+                @Override
+                public void windowClosing(WindowEvent e) {
+                    ChessBoard.this.isEvalBoardClosed = true;
+                    super.windowClosing(e);
+                }
+            });
             this.setResizable(false);
             this.pack();
             this.setLocationRelativeTo(null);
             this.setLocation(0,0);
             this.setVisible(true);
+        }
+
+        public Double getEvaluation(String fen) {
+            return positionalChances.get(fen);
+        }
+
+        public Double getLastEvaluation(String fen) {
+            return positionalChances.get(fen);
+        }
+
+        public void updateEval(Double eval, String fen) {
+            if (eval == null) {
+                setEval(fen);
+            } else if (eval != -1d) {
+                setEval(eval, fen);
+            }
+        }
+
+        public void updateEvalDTZDTM(Integer dtz, Integer dtm) {
+            if (dtz != null) {
+                setDtz(dtz);
+            } else {
+                setDtz();
+            }
+            if (dtm != null) {
+                setDtm(dtm);
+            } else {
+                setDtm();
+            }
+        }
+
+        public void addEvalHistory(double data) {
+            javax.swing.SwingWorker<Boolean, double[]> realTime = swingWorker.getMySwingWorker();
+            if (realTime == null) return;
+            swingWorker.getMySwingWorker().addData(data);
+        }
+
+        private void setEval(String fen) {
+            if (!isEvalBoardClosed) {
+                evalLabel.setText("Evaluation: ±0.00");
+                double val = StockFish.getWinningChances(0d);
+                positionalChances.put(fen, val);
+                evalBar.setValue((evalBar.getMinimum() + evalBar.getMaximum()) / 2);
+                winChanceBar.setValue((int) (val * 100));
+            }
+            addEvalHistory(0);
+        }
+        private void setDtz(int x) {
+            dtz.setText("DTZ: " + x + "  ");
+        }
+
+        private void setDtz() {
+            dtz.setText(null);
+        }
+
+        private void setDtm(int x) {
+            dtm.setText("Mate in: " + x + "  ");
+        }
+
+        private void setDtm() {
+            dtm.setText(null);
+        }
+
+        private void setEval(Double eval, String fen) {
+            if (!isEvalBoardClosed) {
+                evalLabel.setText("Evaluation: " + (eval > 0 ? "+" : (eval == 0 ? "±" : "-")) + Math.abs(eval));
+                double val = StockFish.getWinningChances(eval * 100);
+                positionalChances.put(fen, val);
+                evalBar.setValue(((evalBar.getMinimum() + evalBar.getMaximum()) / 2) + ((int) (eval * 10)));
+                winChanceBar.setValue((int) (val * 100));
+            }
+            addEvalHistory(eval);
+        }
+
+        public void clearHistory() {
+            historyPanel.removeAll();
+        }
+
+        public void reset() {
+            clearHistory();
+            positionalChances.clear();
+            this.evalLabel.setText("Resetting...");
+            Timer timer = new Timer();
+            timer.schedule(new TimerTask() {
+                @Override
+                public void run() {
+                    if (Main.stockFish == null) {
+                        evalLabel.setText("[Evaluation disabled]");
+                    } else {
+                        setEval(manager.generateCurrentFEN());
+                    }
+                }
+            }, 1000);
+        }
+
+        public void addHistory(String move, String FEN) {
+            JPanel panel = new JPanel();
+            panel.setLayout(new BoxLayout(panel, BoxLayout.X_AXIS));
+
+            JLabel moveName = new JLabel("XXXXXXX");
+            final Dimension size = moveName.getPreferredSize();
+            moveName.setMinimumSize(size);
+            moveName.setPreferredSize(size);
+            moveName.setText(move);
+            panel.add(moveName);
+
+            JButton fenButton = new JButton(new AbstractAction(FEN) {
+                @Override
+                public void actionPerformed(ActionEvent e) {
+                    Toolkit.getDefaultToolkit().getSystemClipboard().setContents(new StringSelection(FEN), null);
+                }
+            });
+            panel.add(fenButton);
+            panel.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+            historyPanel.add(panel);
+
+            paintComponents(getGraphics());
+
+            this.panel.validate();
+            JScrollBar vertical = pane.getVerticalScrollBar();
+            vertical.setValue(vertical.getMaximum());
         }
     }
 

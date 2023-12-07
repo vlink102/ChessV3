@@ -19,7 +19,7 @@ import java.util.concurrent.ThreadLocalRandom;
 /**
  * Creates a real-time chart using SwingWorker
  */
-public class SwingWorkerRealTime {
+public class SwingWorker {
 
     public MySwingWorker mySwingWorker;
     public SwingWrapper<XYChart> sw;
@@ -88,7 +88,7 @@ public class SwingWorkerRealTime {
         mySwingWorker.execute();
     }
 
-    public class MySwingWorker extends SwingWorker<Boolean, double[]> {
+    public class MySwingWorker extends javax.swing.SwingWorker<Boolean, double[]> {
 
         LinkedList<Double> fifo = new LinkedList<>();
 

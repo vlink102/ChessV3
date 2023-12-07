@@ -1,12 +1,15 @@
 package me.vlink102.personal.internal;
 
-import org.knowm.xchart.*;
-import org.knowm.xchart.internal.series.MarkerSeries;
-import org.knowm.xchart.style.markers.Marker;
+import org.knowm.xchart.SwingWrapper;
+import org.knowm.xchart.XYChart;
+import org.knowm.xchart.XYChartBuilder;
+import org.knowm.xchart.XYSeries;
 import org.knowm.xchart.style.markers.SeriesMarkers;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Timer;
@@ -22,7 +25,20 @@ public class SwingWorkerRealTime {
     public SwingWrapper<XYChart> sw;
     XYChart chart;
 
+    static void setLocationToTopRight(JFrame frame) {
+        GraphicsConfiguration config = frame.getGraphicsConfiguration();
+        Rectangle bounds = config.getBounds();
+        Insets insets = Toolkit.getDefaultToolkit().getScreenInsets(config);
+
+        int x = bounds.x + bounds.width - insets.right - frame.getWidth();
+        int y = bounds.y + insets.top;
+        frame.setLocation(x, y);
+    }
+
     public MySwingWorker getMySwingWorker() {
+        if (mySwingWorker.isCancelled()) {
+            return null;
+        }
         return mySwingWorker;
     }
 
@@ -55,8 +71,18 @@ public class SwingWorkerRealTime {
         // Show it
         sw = new SwingWrapper<>(chart);
         JFrame frame = sw.displayChart();
+        frame.setLocationRelativeTo(null);
+        setLocationToTopRight(frame);
+        frame.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
         frame.setTitle("Chess V3 Graphical Analysis");
         frame.setIconImage(FileUtils.getPieces().get(PieceEnum.values()[ThreadLocalRandom.current().nextInt(PieceEnum.values().length)]).getImage());
+        frame.addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosing(WindowEvent e) {
+                mySwingWorker.cancel(true);
+                super.windowClosing(e);
+            }
+        });
 
         mySwingWorker = new MySwingWorker();
         mySwingWorker.execute();

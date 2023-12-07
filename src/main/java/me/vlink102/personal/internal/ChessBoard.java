@@ -267,6 +267,8 @@ public class ChessBoard extends JFrame implements MouseListener, MouseMotionList
         }
 
         public void addEvalHistory(double data) {
+            SwingWorker<Boolean, double[]> realTime = swingWorkerRealTime.getMySwingWorker();
+            if (realTime == null) return;
             swingWorkerRealTime.getMySwingWorker().addData(data);
         }
 

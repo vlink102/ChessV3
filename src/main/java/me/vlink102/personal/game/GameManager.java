@@ -276,21 +276,23 @@ public class GameManager {
             return;
         }
         String moveString = move.deepToString(this, board);
-        movePiece(board, move);
+        boolean didMove = movePiece(board, move);
         String currentFEN = generateCurrentFEN();
         //Float eval = Main.stockFish.getEvaluation(currentFEN);
 
         EventQueue.invokeLater(() -> {
             refreshBoard(ChessBoard.WHITE_VIEW);
-            if (history.size() == 0 || !history.get(history.size() - 1).equalsIgnoreCase(currentFEN)) {
-                history.add(currentFEN);
-                GameManager.this.board.getEvalBoard().addHistory(moveString, currentFEN);
-                //this.board.getEvalBoard().updateEval(eval, null, null);
-                uciHistory.add(move.toUCI());
+            if (didMove) {
+                if (history.size() == 0 || !history.get(history.size() - 1).equalsIgnoreCase(currentFEN)) {
+                    history.add(currentFEN);
+                    GameManager.this.board.getEvalBoard().addHistory(moveString, currentFEN);
+                    //this.board.getEvalBoard().updateEval(eval, null, null);
+                    uciHistory.add(move.toUCI());
 
+                }
+                Main.evaluation.moveMade(currentFEN);
+                recursiveMoves();
             }
-            Main.evaluation.moveMade(currentFEN);
-            recursiveMoves();
             repaintContentPane(this.board);
         });
     }
@@ -767,19 +769,22 @@ public class GameManager {
         }
     }
 
-    public void movePiece(PieceWrapper[][] board, SimpleMove move) {
+    public boolean movePiece(PieceWrapper[][] board, SimpleMove move) {
         if (move.getPiece() == null) {
-            return;
+            return false;
         }
         if (!canLegallyMove(move)) {
-            return;
+            return false;
         }
         if (canMove(move, board) && notBlocked(board, move.getFrom(), move.getTo()) && kingAvoidsCheck(board, move)) {
             movePieceInternal(board, move);
             generateEnPassantTile(move);
             move.getPiece().incrementMoves();
             gamePlay.movePiece(move, board);
+        } else {
+            return false;
         }
+        return true;
     }
 
     public void cleanUpPawnPromotion(PieceWrapper[][] board, SimpleMove move) {

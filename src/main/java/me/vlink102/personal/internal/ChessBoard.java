@@ -638,7 +638,7 @@ public class ChessBoard extends JFrame implements MouseListener, MouseMotionList
             chessPiece = null;
             Component c = chessBoard.findComponentAt(e.getX(), e.getY());
 
-            if (c instanceof JPanel) return;
+            if (!(c instanceof JLabel)) return;
 
             chessPiece = (JLabel) c;
             chessPiece.setLocation(e.getX() - (chessPiece.getWidth() / 2), e.getY()  - (chessPiece.getWidth() / 2));

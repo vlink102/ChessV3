@@ -89,7 +89,6 @@ public class Main {
                 return "java.exe files";
             }
         });
-        jdk.setAcceptAllFileFilterUsed(false);
 
         panel.add(errScreen);
         panel.add(consoleScreen);
@@ -127,14 +126,15 @@ public class Main {
                             selected = new File(fileName + ".bat");
                         }
 
-                        String batContents = "powershell -Command '& \"{JAVA_EXE}\" {JVM_ARGUMENTS} -jar \"{CHESS_JAR}\"'";
+                        //String batContents = "powershell -Command \"& \"{JAVA_EXE}\" -jar \"{CHESS_JAR}\" {JVM_ARGUMENTS}\"";
+                        String batContents = "powershell -Command \"& '{JAVA_EXE}' -jar '{CHESS_JAR}' {JVM_ARGUMENTS}\"";
                         StringJoiner jvmArgs = new StringJoiner(" ");
                         if (!showErrScreen.isSelected()) jvmArgs.add("--noerr");
                         if (!showConsoleScreen.isSelected()) jvmArgs.add("--nogui");
                         jvmArgs.add("-Board.Size=" + boardSizeSpinner.getValue());
                         jvmArgs.add("-Engine.Cores=" + engineCoresSpinner.getValue());
                         jvmArgs.add("-Engine.PV=" + multiPVSpinner.getValue());
-                        jvmArgs.add("\"-FEN=" + fenField.getText() + "\"");
+                        jvmArgs.add("'-FEN=" + fenField.getText() + "'");
                         jvmArgs.add("-PlayAs=" + playAsWhite.isSelected());
                         jvmArgs.add("-Engine.Time=" + engineTimeSpinner.getValue());
                         jvmArgs.add("-Game.Opponent=" + opponentComboBox.getSelectedItem());
@@ -191,6 +191,8 @@ public class Main {
 
     public static void main(String[] args) throws IOException, URISyntaxException {
         LafManager.install(new DarculaTheme());
+        generateBat();
+        if (true)return;
         int boardSize = 600;
         String fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
         boolean openConsole = true;

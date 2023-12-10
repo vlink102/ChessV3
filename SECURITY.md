@@ -4,13 +4,14 @@
 
 | Version | Supported          |
 | ------- | ------------------ |
-| 6.8.x   | :white_check_mark: |
-| < 6.5.x   | :x: |
-| 5.x.x   | :x:                |
-| 4.x.x   | :x:                |
-| 3.x.x   | :x:                |
-| 2.x.x   | :x:                |
-| 1.x.x   | :x:                |
+| v7.0.0   | ✅                |
+| v6.9.x   | ✅                |
+| v6.x.x   | :x:                |
+| v5.x.x   | :x:                |
+| v4.x.x   | :x:                |
+| v3.x.x   | :x:                |
+| v2.x.x   | :x:                |
+| v1.x.x   | :x:                |
 
 |OS|Supported|Version|
 |---|---|---|

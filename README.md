@@ -1,6 +1,6 @@
 # ChessV3
 
-# Features:
+## Features:
   - [Forsyth-Edwards-Notation](https://en.wikipedia.org/wiki/Forsyth%E2%80%93Edwards_Notation) full integration (import + export)
 > [!NOTE]
 > ~~Malformed FEN strings will crash the program.~~ (Fixed in [c489405](https://github.com/vlink102/ChessV3/commit/c4894051c88b84fd15332ec980ee48112bd977e0))
@@ -109,12 +109,12 @@ $$f(a)=50+(50*(\frac{2}{1+e^{-0.004a}}-1))$$
   <img width="300" height="325" src="https://github.com/vlink102/ChessV3/assets/93732189/d41f405d-4cb4-47ce-b1ea-11279355dd10">
 </p>
 
-# JVM Startup Arguments
+## JVM Startup Arguments
 
 > [!NOTE]
 > Arguments with spaces should be encased in quotes:
 > ```
-> -FEN="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+> '-FEN=rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'
 > ```
 
 |Argument|Default values|Data Type|
@@ -129,6 +129,7 @@ $$f(a)=50+(50*(\frac{2}{1+e^{-0.004a}}-1))$$
 |-Engine.Cores=``VALUE``|``Based on your CPU``|Integer|
 |--nogui|``Disables console GUI``||
 |--noerr|``Disables error GUI``||
+|--generate-bat|``Opens the executable generator``||
 
 > [!TIP]
 > The default cores will be set to your physical processor count.
@@ -139,12 +140,20 @@ $$f(a)=50+(50*(\frac{2}{1+e^{-0.004a}}-1))$$
 > ```
 > For more info, see [hyper threading](https://en.wikipedia.org/wiki/Hyper-threading)
 
-# Windows Powershell Bash Script
+## ~~Windows Powershell Batch Script~~ (See generator)
 
-> [!CAUTION]
-> Use at your own risk
 ```bat
 powershell -Command "& '{PATH_TO_JRE}\java.exe' -jar '{PATH_TO_JAR}\ChessV3-{VERSION}.jar' {JVM_ARGUMENTS}"
 ```
-
+## Batch file generator (Added in [644c4e9](https://github.com/vlink102/ChessV3/commit/644c4e99b3aef0ccca0712a9ab161be13a19a3de) [#20](https://github.com/vlink102/ChessV3/issues/20)) 
+To start the batch file generator, *only* use the ``--generate-bat`` JVM argument:
+```cmd
+>>> java -jar ChessV3-{VERSION}.jar --generate-bat 
+```
+> [!WARNING]
+> The batch file will run the same parameters every time.
+>
+> This also means that if the JDK path or .jar file are either deleted or moved, the batch script will no longer function.
+>
+> To generate another, simply re-run the generator.
 

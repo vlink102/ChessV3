@@ -68,38 +68,38 @@ $$f(a)=50+(50*(\frac{2}{1+e^{-0.004a}}-1))$$
 </details>
 
 
-  - Will detect ambiguous move notation
+  - Will rewrite ambiguous moves in proper algebraic notation
   - Castle and [En-passant](https://en.wikipedia.org/wiki/En_passant) features
-  - Asynchronous Evaluation and Graphing
+  - Asynchronous Evaluation Graphing
   - Implements 7-piece [Syzygy](https://syzygy-tables.info/) [table bases](https://en.wikipedia.org/wiki/Endgame_tablebase) (14 terabyte database)
 
 <details>
   <summary>Testing and results</summary>
 
-  |Position|Outcome|
-  |---|---|
-  |8/5P2/8/8/p5r1/1p6/3R4/k1K5 w - - 0 1|1-0 (Conversion + M35)|
-  | 4k3/8/8/8/8/8/8/4KBN1 w - - 0 1|1-0 (M54)|
-  | 8/8/7B/K7/8/7p/4Bkp1/6Rb w - - 0 1|1/2-1/2 (Insufficient material)|
-  | 5q2/n2P1k2/2b5/8/8/3N4/4BK2/6Q1 w - - 0 1|1-0 (DTZ -6 + DTZ 4 + M19)|
-  | 8/1p6/1P1p4/1K1p2B1/P2P4/6pp/1P6/5k2 w - - 0 1|1/2-1/2 (Stalemate)|
-  | 8/8/5k2/8/p7/8/1PK5/8 w - - 0 1|1-0 (M48)|
-  | 4k2r/8/8/7P/7P/6KP/7P/7R w k - 0 1|1/2-1/2 (Insufficient material)|
-  | 7k/r6P/6K1/7R/8/8/P7/8 w - - 0 1|1/2-1/2 (Stalemate)|
-  | r2qk3/8/8/8/8/8/8/3QK2R w Kq - 0 1|1-0 (M32)|
-  | 8/pQp2p1k/7p/6pK/6P1/6P1/8/5q2 b - - 0 1|0-1 (M-1)|
-  | 1q6/p1p2Q2/8/3p4/4p3/3qk3/8/B5K1 w - - 0 1|1-0 (M1)|
-  | 6k1/P3Q3/6K1/8/8/8/5pq1/7q w - - 0 1|0-1 (DTZ -2 + M2)|
-  | 1k6/8/pp6/6B1/3P4/2P5/r3r2P/1KR4R b - - 0 1|0-1 (M-1)|
-  | 8/8/1rk5/KR6/8/8/1P6/8 w - - 0 1|1-0 (M23)|
-  | 8/8/8/8/2N5/6p1/k1K3N1/8 w - - 0 1|1-0 (M33)|
-  | 8/8/8/2kpp3/8/8/1K1NN3/8 w - - 0 1|1-0 (DTZ 122 + M156)|
-  | 6k1/8/1r2n3/2b5/K7/8/8/1N5Q w - - 0 1|1/2-1/2 (DTZ 717)|
-  | 8/3r4/8/6n1/3K1k2/1b6/7N/7Q w - - 0 1|1/2-1/2 (DTZ 1033)|
-  | 8/8/8/8/6k1/6P1/r4PK1/1R6 w - - 0 1|1-0 (DTZ 9 + DTZ -16 + M12)|
-  | 5qk1/6p1/6P1/8/PP6/KP6/8/QRRRRRRR b - - 0 1|1/2-1/2 (Stalemate)|
-  | 1N6/1RK5/5n2/8/8/8/5n2/6k1 w - - 0 1|1/2-1/2 (DTZ -483 + DTZ 479)|
-  | 8/4N3/8/8/3pN3/1p6/p2R4/k5K1 w - - 0 1|1-0 (DTZ -6 + M30)|
+  |Position|Outcome|Info|
+  |---|---|---|
+  |8/5P2/8/8/p5r1/1p6/3R4/k1K5 w - - 0 1|1-0|White zeroes in 1, White mates in 34|
+  | 4k3/8/8/8/8/8/8/4KBN1 w - - 0 1|1-0|White mates in 54|
+  | 8/8/7B/K7/8/7p/4Bkp1/6Rb w - - 0 1|1/2-1/2|Insufficient Material|
+  | 5q2/n2P1k2/2b5/8/8/3N4/4BK2/6Q1 w - - 0 1|1-0|Black zeroes in 6, White zeroes in 4, White mates in 19|
+  | 8/1p6/1P1p4/1K1p2B1/P2P4/6pp/1P6/5k2 w - - 0 1|1/2-1/2|Stalemate|
+  | 8/8/5k2/8/p7/8/1PK5/8 w - - 0 1|1-0|White mates in 48|
+  | 4k2r/8/8/7P/7P/6KP/7P/7R w k - 0 1|1/2-1/2|Insufficient Material|
+  | 7k/r6P/6K1/7R/8/8/P7/8 w - - 0 1|1/2-1/2|Stalemate|
+  | r2qk3/8/8/8/8/8/8/3QK2R w Kq - 0 1|1-0|White mates in 32|
+  | 8/pQp2p1k/7p/6pK/6P1/6P1/8/5q2 b - - 0 1|0-1|Black mates in 1|
+  | 1q6/p1p2Q2/8/3p4/4p3/3qk3/8/B5K1 w - - 0 1|1-0|White mates in 1|
+  | 6k1/P3Q3/6K1/8/8/8/5pq1/7q w - - 0 1|0-1|Black zeroes in 2, White mates in 2|
+  | 1k6/8/pp6/6B1/3P4/2P5/r3r2P/1KR4R b - - 0 1|0-1|Black mates in 1|
+  | 8/8/1rk5/KR6/8/8/1P6/8 w - - 0 1|1-0|White mates in 23|
+  | 8/8/8/8/2N5/6p1/k1K3N1/8 w - - 0 1|1-0|White mates in 33|
+  | 8/8/8/2kpp3/8/8/1K1NN3/8 w - - 0 1|1-0|White zeroes in 122, White mates in 156|
+  | 6k1/8/1r2n3/2b5/K7/8/8/1N5Q w - - 0 1|1/2-1/2|White zeroes in 717|
+  | 8/3r4/8/6n1/3K1k2/1b6/7N/7Q w - - 0 1|1/2-1/2|White zeroes in 1033|
+  | 8/8/8/8/6k1/6P1/r4PK1/1R6 w - - 0 1|1-0|White zeroes in 9, Black zeroes in 16, White mates in 12|
+  | 5qk1/6p1/6P1/8/PP6/KP6/8/QRRRRRRR b - - 0 1|1/2-1/2|Stalemate|
+  | 1N6/1RK5/5n2/8/8/8/5n2/6k1 w - - 0 1|1/2-1/2|Black zeroes in 483, White zeroes in 479|
+  | 8/4N3/8/8/3pN3/1p6/p2R4/k5K1 w - - 0 1|1-0|Black zeroes in 6, White mates in 30|
   
 </details>
 
@@ -127,6 +127,8 @@ $$f(a)=50+(50*(\frac{2}{1+e^{-0.004a}}-1))$$
 |-Engine.Time=``VALUE``|3000|Integer|
 |-Engine.PV=``VALUE``|1|Integer|
 |-Engine.Cores=``VALUE``|``Based on your CPU``|Integer|
+|--nogui|``Disables console GUI``||
+|--noerr|``Disables error GUI``||
 
 > [!TIP]
 > The default cores will be set to your physical processor count.
@@ -142,7 +144,7 @@ $$f(a)=50+(50*(\frac{2}{1+e^{-0.004a}}-1))$$
 > [!CAUTION]
 > Use at your own risk
 ```bat
-powershell -Command "& '{PATH_TO_JRE}\java.exe' -jar '{PATH_TO_JAR}\ChessV3-{VERSION}.jar' -Xmx2048M"
+powershell -Command "& '{PATH_TO_JRE}\java.exe' -jar '{PATH_TO_JAR}\ChessV3-{VERSION}.jar' {JVM_ARGUMENTS}"
 ```
 
 

@@ -1,6 +1,5 @@
 package me.vlink102.personal.game;
 
-import com.github.weisj.darklaf.theme.event.ThemeInstalledListener;
 import me.vlink102.personal.game.pieces.King;
 import me.vlink102.personal.game.pieces.Pawn;
 import me.vlink102.personal.internal.ChessBoard;

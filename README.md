@@ -140,15 +140,13 @@ $$f(a)=50+(50*(\frac{2}{1+e^{-0.004a}}-1))$$
 > ```
 > For more info, see [hyper threading](https://en.wikipedia.org/wiki/Hyper-threading)
 
-## ~~Windows Powershell Batch Script~~ (See generator)
-
-```bat
-powershell -Command "& '{PATH_TO_JRE}\java.exe' -jar '{PATH_TO_JAR}\ChessV3-{VERSION}.jar' {JVM_ARGUMENTS}"
-```
 ## Batch file generator (Added in [644c4e9](https://github.com/vlink102/ChessV3/commit/644c4e99b3aef0ccca0712a9ab161be13a19a3de) [#20](https://github.com/vlink102/ChessV3/issues/20)) 
 To start the batch file generator, *only* use the ``--generate-bat`` JVM argument:
 ```cmd
->>> java -jar ChessV3-{VERSION}.jar --generate-bat 
+Microsoft Windows [Version xx.x.xxxxx.xxxx]
+(c) Microsoft Corporation. All rights reserved.
+
+C:\Users\vlink102>java -jar ChessV3-vx.x.x.jar --generate-bat
 ```
 > [!WARNING]
 > The batch file will run the same parameters every time.
@@ -157,3 +155,12 @@ To start the batch file generator, *only* use the ``--generate-bat`` JVM argumen
 >
 > To generate another, simply re-run the generator.
 
+> [!NOTE]
+> The generator will not allow the user to set the Engine.Cores parameter higher than the logical cores of the computer.
+>
+> Several other restrictions are also in place to prevent accidental inputs.
+
+## Windows Powershell Batch Script (Start generator)
+```shell
+& "{PATH_TO_JRE}\java.exe" -jar "{PATH_TO_JAR}\ChessV3-{VERSION}.jar" --generate-bat
+```

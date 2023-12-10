@@ -1,12 +1,12 @@
 # Download Stockfish
 
-_Note: Stockfish is a **command line program**. You may want to use it in your own UCI-compatible [chess GUI](#download-a-chess-gui)._
+_Note: Stockfish is a **command line program**. You may want to use it in your own UCI-compatible [chess GUI](#download-a-chess-scrollingTextGui)._
 
 ## Get started
 
 1. First download Stockfish. There are multiple choices. Refer to the [official](#official-downloads) and [unofficial](#unofficial) downloads. Stockfish itself is *completely free* with all its options.
-2. Next, [download a GUI](#download-a-chess-gui) (Graphical User Interface) as it is needed to conveniently use Stockfish. There are multiple free and commercial GUIs available. Different GUI's have more or less advanced features, for example, an opening explorer or automatic game analysis.
-3. Now Stockfish must be made available to the GUI. [Install in a Chess GUI](#install-in-a-chess-gui) explains how this can be done for some of them. If a different GUI is used, please read the GUI's manual.
+2. Next, [download a GUI](#download-a-chess-scrollingTextGui) (Graphical User Interface) as it is needed to conveniently use Stockfish. There are multiple free and commercial GUIs available. Different GUI's have more or less advanced features, for example, an opening explorer or automatic game analysis.
+3. Now Stockfish must be made available to the GUI. [Install in a Chess GUI](#install-in-a-chess-scrollingTextGui) explains how this can be done for some of them. If a different GUI is used, please read the GUI's manual.
 4. Ultimately, change the default [settings](#change-settings) of Stockfish to get the [best possible analysis](Stockfish-FAQ#optimal-settings).
 
 ---

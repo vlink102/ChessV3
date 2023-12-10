@@ -5,9 +5,8 @@ import com.github.weisj.darklaf.theme.DarculaTheme;
 import me.vlink102.personal.internal.*;
 
 import javax.swing.*;
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
+import java.awt.*;
+import java.io.*;
 
 public class Main {
     public static FileUtils fileUtils;
@@ -23,12 +22,31 @@ public class Main {
     public static boolean WHITE_TO_MOVE = true;
     public static int ENGINE_THINKING_TIME = 3000;
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws IOException {
+        LafManager.install(new DarculaTheme());
+        /*
+        Console console = System.console();
+        if (console == null && !GraphicsEnvironment.isHeadless()) {
+            String fileName = Main.class.getProtectionDomain().getCodeSource().getLocation().toString().substring(6);
+            Runtime.getRuntime().exec(new String[]{"cmd","/c","start","cmd","/k","java -jar \"" + fileName + "\""});
+        } else {
+            Main.main(new String[0]);
+            System.out.println("Program has ended, please type 'exit' to close the console");
+        }
+         */
         int boardSize = 600;
         String fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+        boolean openConsole = true;
+        boolean openErr = true;
         if (args.length != 0) {
             for (String arg : args) {
                 if (!arg.startsWith("-")) continue;
+                if (arg.startsWith("--noerr")) {
+                    openErr = false;
+                }
+                if (arg.startsWith("--nogui")) {
+                    openConsole = false;
+                }
                 if (arg.startsWith("-Board.Size=")) {
                     boardSize = Integer.parseInt(arg.split("=")[1]);
                 }
@@ -55,7 +73,12 @@ public class Main {
                 }
             }
         }
-        LafManager.install(new DarculaTheme());
+        if (openErr) {
+            new ConsoleGUI(true);
+        }
+        if (openConsole) {
+            new ConsoleGUI(false);
+        }
         int finalBoardSize = boardSize;
         String finalFen = fen;
         SwingUtilities.invokeLater(() -> {
@@ -80,6 +103,7 @@ public class Main {
                     stockFish.sendCommand("setoption name SyzygyPath value ");
                 } else {
                     System.out.println("Something went wrong...");
+                    return;
                 }
                 if (evaluation.startEngine()) {
                     System.out.println("Evaluation engine started");
@@ -152,6 +176,63 @@ public class Main {
         COMPUTER,
         RANDOM,
         PLAYER
+    }
+
+    public static class ConsoleGUI {
+        public ConsoleGUI(boolean err) {
+            ScrollingTextGUI scrollingTextGui;
+            if (err) {
+                scrollingTextGui = new ScrollingTextGUI("Console Errors");
+                System.setErr(new PrintStream(new RedirectingOutputStream(scrollingTextGui), true));
+            } else {
+                scrollingTextGui = new ScrollingTextGUI("Console Output");
+                System.setOut(new PrintStream(new RedirectingOutputStream(scrollingTextGui), true));
+            }
+            scrollingTextGui.start();
+        }
+    }
+
+    public static class ScrollingTextGUI {
+        private final JTextArea textArea;
+        private final JFrame frame;
+        private final JScrollPane pane;
+
+        public ScrollingTextGUI(String title) {
+            frame = new JFrame(title);
+            frame.setBounds(0, 0, 600, 400);
+            frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+            textArea = new JTextArea();
+
+            pane = new JScrollPane();
+            pane.setViewportView(textArea);
+            pane.setPreferredSize(new Dimension(600, 400));
+            pane.getVerticalScrollBar().setBlockIncrement(20);
+            frame.getContentPane().add(pane, BorderLayout.CENTER);
+        }
+
+        public void start() {
+            frame.setVisible(true);
+        }
+
+        public void appendText(String text) {
+            textArea.append(text);
+            frame.validate();
+            JScrollBar bar = pane.getVerticalScrollBar();
+            bar.setValue(bar.getMaximum());
+        }
+    }
+
+    public static class RedirectingOutputStream extends OutputStream {
+        private final ScrollingTextGUI scrollingTextGui;
+
+        public RedirectingOutputStream(ScrollingTextGUI scrollingTextGui) {
+            this.scrollingTextGui = scrollingTextGui;
+        }
+
+        @Override
+        public void write(int b) throws IOException {
+            scrollingTextGui.appendText(String.valueOf((char) b));
+        }
     }
 
     public static class OSValidator {

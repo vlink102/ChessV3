@@ -22,8 +22,8 @@ If you're looking for any kind of assistance with Stockfish.
 * General
   * [FAQ](Stockfish-FAQ)
   * [Download Stockfish](Download-and-usage#download-stockfish)
-  * [Download GUI](Download-and-usage#download-a-chess-gui)
-  * [Install in GUI](Download-and-usage#install-in-a-chess-gui)
+  * [Download GUI](Download-and-usage#download-a-chess-scrollingTextGui)
+  * [Install in GUI](Download-and-usage#install-in-a-chess-scrollingTextGui)
 
 * [Developers](Developers)
   * [Using Stockfish in your project](Developers#using-stockfish-in-your-own-project)

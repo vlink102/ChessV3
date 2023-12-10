@@ -123,7 +123,7 @@ Stockfish is a command line program, when you execute it, you might notice that 
 
 ## User-friendly experience
 
-If you prefer a **more user-friendly experience** with a **chessboard and additional features**, you can consider using a graphical user interface (GUI) alongside Stockfish. To set up a GUI, you can visit the [Download and Usage](Download-and-usage#download-a-chess-gui) page.
+If you prefer a **more user-friendly experience** with a **chessboard and additional features**, you can consider using a graphical user interface (GUI) alongside Stockfish. To set up a GUI, you can visit the [Download and Usage](Download-and-usage#download-a-chess-scrollingTextGui) page.
 
 ## Available commands
 

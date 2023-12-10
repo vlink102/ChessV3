@@ -976,6 +976,7 @@ public class GameManager {
         for (int i = 0; i < 8; i++) {
             for (int j = 0; j < 8; j++) {
                 Tile to = new Tile(i, j);
+                if (board[to.row][to.column] instanceof King) continue;
                 SimpleMove possibleMove = new SimpleMove(tile, to, board);
                 if ((to.row == 7 || to.row == 0) && possibleMove.getPiece() instanceof Pawn) {
                     if (canMove(possibleMove, board) && notBlocked(board, tile, to) && kingAvoidsCheck(board, possibleMove)) {

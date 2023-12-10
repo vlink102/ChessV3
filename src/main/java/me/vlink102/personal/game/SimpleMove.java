@@ -1,5 +1,6 @@
 package me.vlink102.personal.game;
 
+import com.github.weisj.darklaf.theme.event.ThemeInstalledListener;
 import me.vlink102.personal.game.pieces.King;
 import me.vlink102.personal.game.pieces.Pawn;
 import me.vlink102.personal.internal.ChessBoard;
@@ -24,8 +25,29 @@ public class SimpleMove {
         this.promotionPieces = promotionPieces;
     }
 
+    public static boolean validateUCIMove(String uciString) {
+        if (uciString.length() == 4 || uciString.length() == 5) {
+            String tile1 = uciString.substring(0, 1);
+            String tile2 = uciString.substring(2, 3);
+            if (GameManager.Tile.isValidTile(8, tile1) && GameManager.Tile.isValidTile(8, tile2)) {
+                if (uciString.length() == 4) {
+                    return true;
+                } else {
+                    switch (uciString.substring(3, 4)) {
+                        case "r", "n", "b", "q" -> {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
     public static SimpleMove parseStockFishMove(PieceWrapper[][] board, String stockFishMove) {
-        if (stockFishMove.equals("(none)")) return null;
+        if (!validateUCIMove(stockFishMove)) {
+            throw new IllegalArgumentException("Invalid UCI Move received from engine: " + stockFishMove);
+        }
         String fromString = stockFishMove.substring(0, 2);
         String toString = stockFishMove.substring(2, 4);
         GameManager.Tile from = GameManager.Tile.parseTile(fromString);

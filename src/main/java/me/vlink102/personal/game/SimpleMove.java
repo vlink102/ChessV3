@@ -24,10 +24,14 @@ public class SimpleMove {
         this.promotionPieces = promotionPieces;
     }
 
+    /**
+     * 0    1    2    3
+     * e    2    e    4
+     */
     public static boolean validateUCIMove(String uciString) {
         if (uciString.length() == 4 || uciString.length() == 5) {
-            String tile1 = uciString.substring(0, 1);
-            String tile2 = uciString.substring(2, 3);
+            String tile1 = uciString.substring(0, 2); // TODO Maybe fixed 
+            String tile2 = uciString.substring(2, 4);
             if (GameManager.Tile.isValidTile(8, tile1) && GameManager.Tile.isValidTile(8, tile2)) {
                 if (uciString.length() == 4) {
                     return true;

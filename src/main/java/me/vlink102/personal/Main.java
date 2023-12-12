@@ -447,7 +447,7 @@ public class Main {
         public ScrollingTextGUI(String title) {
             frame = new JFrame(title);
             frame.setBounds(0, 0, 600, 400);
-            frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+            frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
             textArea = new JTextArea();
 
             pane = new JScrollPane();

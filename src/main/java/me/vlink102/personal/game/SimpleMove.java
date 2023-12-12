@@ -29,6 +29,7 @@ public class SimpleMove {
      * e    2    e    4
      */
     public static boolean validateUCIMove(String uciString) {
+        uciString = uciString.replaceAll("\n", "");
         if (uciString.length() == 4 || uciString.length() == 5) {
             String tile1 = uciString.substring(0, 2); // TODO Maybe fixed 
             String tile2 = uciString.substring(2, 4);

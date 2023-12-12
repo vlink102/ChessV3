@@ -191,8 +191,6 @@ public class Main {
 
     public static void main(String[] args) throws IOException, URISyntaxException {
         LafManager.install(new DarculaTheme());
-        generateBat();
-        if (true)return;
         int boardSize = 600;
         String fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
         boolean openConsole = true;
